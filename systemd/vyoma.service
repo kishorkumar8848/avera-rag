@@ -1,0 +1,32 @@
+[Unit]
+Description=Vyoma Offline Medical AI Assistant Kiosk Service
+After=network.target sound.target multi-user.target graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=orion
+Group=orion
+WorkingDirectory=/home/orion/avera-rag
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/orion/.Xauthority"
+Environment="PYTHONUNBUFFERED=1"
+Environment="QT_QPA_PLATFORM=xcb"
+Environment="QT_AUTO_SCREEN_SCALE_FACTOR=1"
+
+# ExecStart launches production runner
+ExecStart=/home/orion/avera-rag/run.sh
+
+# Automatic crash recovery & restart policy
+Restart=always
+RestartSec=5s
+KillMode=mixed
+TimeoutStopSec=10s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vyoma-kiosk
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,61 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Model weights & binaries (Strictly Never Commit Heavy Weights > 100MB)
+models/*
+!models/.gitkeep
+*.gguf
+*.safetensors
+*.bin
+*.onnx
+*.onnx.data
+*.pt
+*.pth
+*.zip
+*.tar.gz
+*.tar
+bhashini_models/**/checkpoints/**/*.onnx*
+bhashini_models/**/checkpoints/**/*.data
+bhashini_models/**/checkpoints/**/*.bin
+bhashini_models/**/checkpoints/**/*.pt
+
+# Precomputed Medical Knowledge Base & Index (Whitelisted for instant Jetson deployment)
+indexes/test*
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Runtime logs, temporary audio & telemetry
+logs/*
+!logs/.gitkeep
+*.wav
+*.mp3
+*.ogg
+*.png
+*.jpg
+*.jpeg
+*.webp
+!data/assets/*.png
+!data/assets/*.jpg
+
+# Environment & local secrets
+.env
+.env.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

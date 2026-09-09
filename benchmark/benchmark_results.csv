@@ -1,0 +1,10 @@
+component,latency_ms,budget_ms,within_budget,ram_used_mb,ram_percent,cpu_percent,gpu_percent,temperature_c,power_mode
+Embeddings (Query Encode),33.19,100.0,True,17373.1,71.5,66.7,0.0,,Normal
+Hybrid RAG Retrieval,12.52,500.0,True,17373.1,71.5,66.7,0.0,,Normal
+Qwen2.5-1.5B LLM,20206.16,4000.0,False,17691.2,72.9,6.1,0.0,,Normal
+Moondream 0.5B Vision,6127.13,3000.0,False,18331.9,75.5,10.7,0.0,,Normal
+Bhashini ASR,4583.75,3000.0,False,18315.2,75.4,4.9,0.0,,Normal
+Bhashini NMT,4013.7,1000.0,False,18378.5,75.7,3.4,0.0,,Normal
+Bhashini TTS,4248.82,2000.0,False,18379.4,75.7,3.8,0.0,,Normal
+Full Speech Pipeline (E2E),25455.98,15000.0,False,18361.1,75.6,5.0,0.0,,Normal
+Full Multimodal Pipeline (E2E),28155.56,15000.0,False,18390.5,75.7,6.4,0.0,,Normal

@@ -1,0 +1,110 @@
+[
+  {
+    "latency_ms": 33.19,
+    "ram_used_mb": 17373.1,
+    "ram_percent": 71.5,
+    "cpu_percent": 66.7,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Embeddings (Query Encode)",
+    "budget_ms": 100.0,
+    "within_budget": true
+  },
+  {
+    "latency_ms": 12.52,
+    "ram_used_mb": 17373.1,
+    "ram_percent": 71.5,
+    "cpu_percent": 66.7,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Hybrid RAG Retrieval",
+    "budget_ms": 500.0,
+    "within_budget": true
+  },
+  {
+    "latency_ms": 20206.16,
+    "ram_used_mb": 17691.2,
+    "ram_percent": 72.9,
+    "cpu_percent": 6.1,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Qwen2.5-1.5B LLM",
+    "budget_ms": 4000.0,
+    "within_budget": false
+  },
+  {
+    "latency_ms": 6127.13,
+    "ram_used_mb": 18331.9,
+    "ram_percent": 75.5,
+    "cpu_percent": 10.7,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Moondream 0.5B Vision",
+    "budget_ms": 3000.0,
+    "within_budget": false
+  },
+  {
+    "latency_ms": 4583.75,
+    "ram_used_mb": 18315.2,
+    "ram_percent": 75.4,
+    "cpu_percent": 4.9,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Bhashini ASR",
+    "budget_ms": 3000.0,
+    "within_budget": false
+  },
+  {
+    "latency_ms": 4013.7,
+    "ram_used_mb": 18378.5,
+    "ram_percent": 75.7,
+    "cpu_percent": 3.4,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Bhashini NMT",
+    "budget_ms": 1000.0,
+    "within_budget": false
+  },
+  {
+    "latency_ms": 4248.82,
+    "ram_used_mb": 18379.4,
+    "ram_percent": 75.7,
+    "cpu_percent": 3.8,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Bhashini TTS",
+    "budget_ms": 2000.0,
+    "within_budget": false
+  },
+  {
+    "latency_ms": 25455.98,
+    "ram_used_mb": 18361.1,
+    "ram_percent": 75.6,
+    "cpu_percent": 5.0,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Full Speech Pipeline (E2E)",
+    "budget_ms": 15000.0,
+    "within_budget": false
+  },
+  {
+    "latency_ms": 28155.56,
+    "ram_used_mb": 18390.5,
+    "ram_percent": 75.7,
+    "cpu_percent": 6.4,
+    "gpu_percent": 0.0,
+    "temperature_c": null,
+    "power_mode": "Normal",
+    "component": "Full Multimodal Pipeline (E2E)",
+    "budget_ms": 15000.0,
+    "within_budget": false
+  }
+]

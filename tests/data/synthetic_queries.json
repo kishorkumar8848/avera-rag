@@ -1,0 +1,74 @@
+[
+  {
+    "category": "fever",
+    "query": "Patient has high fever with chills and body ache for 2 days.",
+    "is_emergency": false,
+    "expected_keywords": ["paracetamol", "hydration", "malaria", "dengue"]
+  },
+  {
+    "category": "headache",
+    "query": "Throbbing headache on one side with sensitivity to bright light.",
+    "is_emergency": false,
+    "expected_keywords": ["rest", "dark room", "headache"]
+  },
+  {
+    "category": "cough",
+    "query": "Dry persistent cough for three days without difficulty breathing.",
+    "is_emergency": false,
+    "expected_keywords": ["warm fluids", "cough"]
+  },
+  {
+    "category": "diabetes",
+    "query": "What is HbA1c and how often should a type 2 diabetic patient test it?",
+    "is_emergency": false,
+    "expected_keywords": ["a1c", "blood glucose", "percentage"]
+  },
+  {
+    "category": "hypertension",
+    "query": "Patient diagnosed with high blood pressure, what dietary steps are advised?",
+    "is_emergency": false,
+    "expected_keywords": ["salt", "blood pressure", "exercise"]
+  },
+  {
+    "category": "abdominal_pain",
+    "query": "Mild cramps in stomach after meal with nausea but no vomiting or fever.",
+    "is_emergency": false,
+    "expected_keywords": ["fluids", "bland diet", "consult"]
+  },
+  {
+    "category": "skin_complaint",
+    "query": "Red raised itchy rash on arms after contact with garden plant.",
+    "is_emergency": false,
+    "expected_keywords": ["cool compress", "rash"]
+  },
+  {
+    "category": "respiratory_complaint",
+    "query": "Mild wheezing and stuffy nose with seasonal change.",
+    "is_emergency": false,
+    "expected_keywords": ["steam", "warm fluids"]
+  },
+  {
+    "category": "red_flag_cardiac",
+    "query": "Severe crushing chest pain radiating to left arm with sweating.",
+    "is_emergency": true,
+    "expected_keywords": ["emergency", "108", "hospital", "cardiac"]
+  },
+  {
+    "category": "red_flag_respiratory",
+    "query": "Severe difficulty breathing, gasping for air and lips turning blue.",
+    "is_emergency": true,
+    "expected_keywords": ["emergency", "108", "breathing"]
+  },
+  {
+    "category": "red_flag_stroke",
+    "query": "Sudden facial drooping on right side and slurred speech.",
+    "is_emergency": true,
+    "expected_keywords": ["stroke", "emergency", "hospital"]
+  },
+  {
+    "category": "red_flag_envenomation",
+    "query": "Bitten by a venomous snake on the ankle, rapid swelling and bleeding.",
+    "is_emergency": true,
+    "expected_keywords": ["snake bite", "emergency", "asv", "splint"]
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "q1",
+    "question": "Patient has high intermittent fever with severe chills and shivering after traveling to a forested tribal area.",
+    "expected_topic": "Malaria",
+    "expected_source": "Indian_Protocol",
+    "expected_keywords": ["malaria", "paracetamol", "rdt", "smear"]
+  },
+  {
+    "id": "q2",
+    "question": "Sudden onset of high fever with severe joint pain and swelling in wrists and ankles.",
+    "expected_topic": "Chikungunya",
+    "expected_source": "Indian_Protocol",
+    "expected_keywords": ["chikungunya", "joint", "paracetamol"]
+  },
+  {
+    "id": "q3",
+    "question": "High fever with pain behind the eyes, intense muscle ache, and small red spots on skin.",
+    "expected_topic": "Dengue",
+    "expected_source": "Indian_Protocol",
+    "expected_keywords": ["dengue", "platelet", "nsaid", "paracetamol"]
+  },
+  {
+    "id": "q4",
+    "question": "Farmer found a black painless scab sore in groin after working in tall grass and developed high fever.",
+    "expected_topic": "Scrub Typhus",
+    "expected_source": "Indian_Protocol",
+    "expected_keywords": ["scrub typhus", "eschar", "doxycycline"]
+  },
+  {
+    "id": "q5",
+    "question": "Patient bitten on the leg by an unknown snake 30 minutes ago, limb is swelling rapidly.",
+    "expected_topic": "Snake Bite",
+    "expected_source": "Indian_Protocol",
+    "expected_keywords": ["snake bite", "asv", "splint", "tourniquet"]
+  },
+  {
+    "id": "q6",
+    "question": "Reddish patch on forearm that has complete loss of sensation and cannot feel pinprick or heat.",
+    "expected_topic": "Leprosy",
+    "expected_source": "Indian_Protocol",
+    "expected_keywords": ["leprosy", "mdt", "sensation"]
+  },
+  {
+    "id": "q7",
+    "question": "What is an A1C test and what percentage indicates type 2 diabetes?",
+    "expected_topic": "A1C",
+    "expected_source": "MedlinePlus",
+    "expected_keywords": ["a1c", "blood glucose", "diabetes"]
+  },
+  {
+    "id": "q8",
+    "question": "How to manage high blood pressure and prevent hypertension complications?",
+    "expected_topic": "High Blood Pressure",
+    "expected_source": "MedlinePlus",
+    "expected_keywords": ["blood pressure", "hypertension"]
+  }
+]
