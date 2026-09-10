@@ -151,10 +151,13 @@ class ASRService:
                         text = text[len(prefix):].strip().lstrip(",. ")
 
                 if text:
+                    from app.models.bhashini_nmt import NMTService
+                    text = NMTService._normalize_query(text, whisper_lang)
                     conf = 0.90
                     latency_ms = (time.time() - start_time) * 1000.0
                     logger.info(f"Offline Faster-Whisper transcribed '{text}' [{whisper_lang}] ({latency_ms:.1f}ms).")
                     return text, conf, latency_ms
+
 
             except Exception as e:
                 logger.error(f"Offline Faster-Whisper error: {e}")

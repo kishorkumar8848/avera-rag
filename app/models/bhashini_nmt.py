@@ -95,6 +95,17 @@ class NMTService:
             text = text.replace("மூச்சு தினறல்", "மூச்சுத் திணறல்")
             text = text.replace("மூச்சு தனறல்", "மூச்சுத் திணறல்")
 
+            # 7. Fast conversational / ASR phonetic variations:
+            text = text.replace("ஏனக்கு", "எனக்கு")
+            text = text.replace("காய், சலி", "காய்ச்சல், சளி")
+            text = text.replace("காய் சலி", "காய்ச்சல் சளி")
+            text = text.replace("காய்,", "காய்ச்சல்,")
+            text = text.replace("மாட்ருமிருமல்", "மற்றும் இருமல்")
+            text = text.replace("மாட்று", "மற்றும்")
+            text = text.replace("மிரமலிருக்கு", "இருமல் இருக்கு")
+            text = text.replace("மிருமல்", "இருமல்")
+
+
         elif lang == "hi":
             # Common Hindi ASR variations
             text = text.replace("खासी", "खांसी")
