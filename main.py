@@ -23,6 +23,11 @@ os.environ.setdefault("FULLSCREEN", "false")
 os.environ.setdefault("UI_WIDTH", "1024")
 os.environ.setdefault("UI_HEIGHT", "600")
 
+# Headless Linux fallback if running via SSH without X11 DISPLAY
+if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+
 from app.core.logging import logger
 from app.hardware.jetson_detector import log_system_summary
 from app.ui.app import run_ui
