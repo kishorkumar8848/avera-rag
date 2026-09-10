@@ -100,7 +100,9 @@ class NMTService:
             text = text.replace("காய், சலி", "காய்ச்சல், சளி")
             text = text.replace("காய் சலி", "காய்ச்சல் சளி")
             text = text.replace("காய்,", "காய்ச்சல்,")
+            text = text.replace("சளிமற்றும்", "சளி மற்றும்")
             text = text.replace("மாட்ருமிருமல்", "மற்றும் இருமல்")
+
             text = text.replace("மாட்று", "மற்றும்")
             text = text.replace("மிரமலிருக்கு", "இருமல் இருக்கு")
             text = text.replace("மிருமல்", "இருமல்")
