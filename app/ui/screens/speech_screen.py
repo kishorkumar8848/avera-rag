@@ -1,14 +1,17 @@
 """
 Speech Assistant Screen for Vyoma Kiosk.
 Provides push-to-talk voice recording, dynamic status indicators,
-structured guidance display, source citations, and non-blocking TTS audio replay.
+ASHA village citizen selection, structured clinical guidance display,
+USB clinical slip printing, and assessment lifecycle management.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from app.ui.qt_compat import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QProgressBar, Qt, QThreadPool, QTimer, Slot, HAS_QT
+    QFrame, QScrollArea, QProgressBar, Qt, QThreadPool, QTimer, Slot,
+    QLineEdit, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
+    QMessageBox, HAS_QT
 )
 
 from app.core.config import settings
@@ -17,11 +20,127 @@ from app.hardware.audio import AudioRecorder
 from app.models.bhashini_tts import tts_service
 from app.ui.workers import SpeechPipelineWorker
 from app.rag.hybrid_retriever import HybridRetriever
+from app.safety.patient_registry import patient_registry, PatientRecord
+from app.ui.report_printer import print_clinical_report
+
+
+class CitizenSearchDialog(QDialog if HAS_QT else object):
+    """
+    Interactive search dialog allowing ASHA workers to quickly search
+    village residents by typing Name (e.g. 'kishor'), Age ('50'), Phone, or ABHA ID.
+    """
+
+    def __init__(self, parent=None, on_selected=None):
+        if HAS_QT:
+            super().__init__(parent)
+        self.on_selected = on_selected
+        self.selected_patient: Optional[PatientRecord] = None
+
+        if HAS_QT:
+            self.setWindowTitle("Village Citizen Registry - ASHA Offline Database")
+            self.resize(850, 520)
+            self._init_ui()
+
+    def _init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
+
+        # Header
+        title = QLabel("Select Village Resident for Assessment")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #00E8C6;")
+        layout.addWidget(title)
+
+        # Search Input
+        search_row = QHBoxLayout()
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("🔍 Type Name, Age, Phone, or ABHA (e.g., kishor, kamala, 50)...")
+        self.search_edit.textChanged.connect(self._on_search_text_changed)
+        search_row.addWidget(self.search_edit)
+
+        clear_btn = QPushButton("Clear")
+        clear_btn.setObjectName("NavBtn")
+        clear_btn.clicked.connect(lambda: self.search_edit.clear())
+        search_row.addWidget(clear_btn)
+        layout.addLayout(search_row)
+
+        # Table of Citizens
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["Name", "Age / Group", "Gender", "Village", "Chronic Conditions", "ABHA ID"])
+        self.table.setSelectionBehavior(QTableWidget.SelectRows if hasattr(QTableWidget, "SelectRows") else 1)
+        self.table.setSelectionMode(QTableWidget.SingleSelection if hasattr(QTableWidget, "SingleSelection") else 1)
+        self.table.itemDoubleClicked.connect(self._on_row_double_clicked)
+        header = self.table.horizontalHeader()
+        if hasattr(header, "setSectionResizeMode"):
+            try:
+                header.setSectionResizeMode(0, QHeaderView.ResizeToContents if hasattr(QHeaderView, "ResizeToContents") else 1)
+                header.setSectionResizeMode(4, QHeaderView.Stretch if hasattr(QHeaderView, "Stretch") else 1)
+            except Exception:
+                pass
+        layout.addWidget(self.table, stretch=1)
+
+        # Bottom Buttons
+        btn_row = QHBoxLayout()
+        self.status_lbl = QLabel("")
+        self.status_lbl.setStyleSheet("color: #94A3B8; font-size: 13px;")
+        btn_row.addWidget(self.status_lbl)
+        btn_row.addStretch()
+
+        select_btn = QPushButton("Select Citizen")
+        select_btn.setObjectName("PrimaryBtn")
+        select_btn.setMinimumHeight(48)
+        select_btn.clicked.connect(self._on_select_clicked)
+        btn_row.addWidget(select_btn)
+
+        close_btn = QPushButton("Cancel")
+        close_btn.setObjectName("NavBtn")
+        close_btn.setMinimumHeight(48)
+        close_btn.clicked.connect(self.reject)
+        btn_row.addWidget(close_btn)
+
+        layout.addLayout(btn_row)
+
+        # Initial Population
+        self._populate_table(patient_registry.get_all())
+
+    def _populate_table(self, patients: List[PatientRecord]):
+        self.current_records = patients
+        self.table.setRowCount(len(patients))
+        for row, p in enumerate(patients):
+            conds_str = ", ".join(p.chronic_conditions) if p.chronic_conditions else "None"
+            self.table.setItem(row, 0, QTableWidgetItem(p.name))
+            self.table.setItem(row, 1, QTableWidgetItem(p.age_display_badge))
+            self.table.setItem(row, 2, QTableWidgetItem(p.gender))
+            self.table.setItem(row, 3, QTableWidgetItem(p.village))
+            self.table.setItem(row, 4, QTableWidgetItem(conds_str))
+            self.table.setItem(row, 5, QTableWidgetItem(p.abha_id))
+        self.status_lbl.setText(f"Showing {len(patients)} citizen records")
+        if patients:
+            self.table.selectRow(0)
+
+    def _on_search_text_changed(self, text: str):
+        matches = patient_registry.search(text.strip())
+        self._populate_table(matches)
+
+    def _on_row_double_clicked(self, item):
+        self._on_select_clicked()
+
+    def _on_select_clicked(self):
+        selected_rows = self.table.selectedItems()
+        if not selected_rows:
+            return
+        row = self.table.currentRow()
+        if 0 <= row < len(self.current_records):
+            self.selected_patient = self.current_records[row]
+            if self.on_selected:
+                self.on_selected(self.selected_patient)
+            self.accept()
 
 
 class SpeechScreen(QWidget if HAS_QT else object):
     """
-    Hands-free, touch-first speech consultation interface.
+    Hands-free, touch-first speech consultation interface with ASHA village patient integration.
     """
 
     def __init__(self, retriever: HybridRetriever, parent=None):
@@ -32,6 +151,13 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.active_language = settings.DEFAULT_LANGUAGE
         self.thread_pool = QThreadPool.globalInstance() if HAS_QT else None
         self.last_result: Optional[Dict[str, Any]] = None
+        self.on_patient_changed = None
+
+        # Default to Kishor Kumar if present in registry, else first record
+        default_list = patient_registry.search("kishor")
+        self.active_patient: Optional[PatientRecord] = default_list[0] if default_list else (
+            patient_registry.get_all()[0] if patient_registry.get_all() else None
+        )
 
         # 10-Second Click-to-Record State
         self.is_recording = False
@@ -53,9 +179,9 @@ class SpeechScreen(QWidget if HAS_QT else object):
     def _init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 16, 24, 16)
-        layout.setSpacing(14)
+        layout.setSpacing(12)
 
-        # Header Info Row
+        # 1. Header Info Row
         header_layout = QHBoxLayout()
         self.title_label = QLabel("Speech Clinical Assistant")
         self.title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #00E8C6;")
@@ -69,7 +195,29 @@ class SpeechScreen(QWidget if HAS_QT else object):
 
         layout.addLayout(header_layout)
 
-        # Emergency Warning Banner (Hidden by default)
+        # 2. Citizen Information Bar
+        self.citizen_bar = QFrame()
+        self.citizen_bar.setObjectName("CitizenBar")
+        bar_layout = QHBoxLayout(self.citizen_bar)
+        bar_layout.setContentsMargins(12, 6, 12, 6)
+        bar_layout.setSpacing(12)
+
+        self.citizen_info_lbl = QLabel("")
+        self.citizen_info_lbl.setObjectName("CitizenName")
+        bar_layout.addWidget(self.citizen_info_lbl)
+
+        bar_layout.addStretch()
+
+        self.change_citizen_btn = QPushButton("🔍 Search / Change Citizen")
+        self.change_citizen_btn.setObjectName("NavBtn")
+        self.change_citizen_btn.setCursor(Qt.PointingHandCursor)
+        self.change_citizen_btn.clicked.connect(self._open_citizen_search)
+        bar_layout.addWidget(self.change_citizen_btn)
+
+        layout.addWidget(self.citizen_bar)
+        self._update_citizen_display()
+
+        # 3. Emergency Warning Banner (Hidden by default)
         self.emergency_frame = QFrame()
         self.emergency_frame.setObjectName("EmergencyBanner")
         self.emergency_frame.setVisible(False)
@@ -80,7 +228,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         em_layout.addWidget(self.emergency_label)
         layout.addWidget(self.emergency_frame)
 
-        # Main Scrollable Results Panel
+        # 4. Main Scrollable Results Panel
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.results_container = QWidget()
@@ -88,15 +236,16 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.results_layout.setSpacing(12)
 
         # Welcome Placeholder
-        self.placeholder_label = QLabel("Press and hold the microphone below, describe your symptoms, then release.")
+        self.placeholder_label = QLabel(self._get_placeholder_text())
         self.placeholder_label.setAlignment(Qt.AlignCenter)
         self.placeholder_label.setStyleSheet("font-size: 18px; color: #94A3B8; padding: 30px;")
+        self.placeholder_label.setWordWrap(True)
         self.results_layout.addWidget(self.placeholder_label)
 
         self.scroll_area.setWidget(self.results_container)
         layout.addWidget(self.scroll_area, stretch=1)
 
-        # Live Status & Indicator
+        # 5. Live Status & Indicator
         status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready to listen")
         self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #00E8C6;")
@@ -112,19 +261,46 @@ class SpeechScreen(QWidget if HAS_QT else object):
 
         layout.addLayout(status_layout)
 
-        # Click-to-Record Microphone Button Area (10s Auto-Send)
+        # 6. Click-to-Record Microphone Button Area (10s Auto-Send)
         mic_layout = QHBoxLayout()
         mic_layout.addStretch()
 
         self.mic_btn = QPushButton("🎤 Click to Speak (10s)")
         self.mic_btn.setObjectName("MicBtn")
-        self.mic_btn.setMinimumSize(260, 72)
+        self.mic_btn.setMinimumSize(280, 74)
         self.mic_btn.setCursor(Qt.PointingHandCursor)
         self.mic_btn.clicked.connect(self._toggle_recording)
         mic_layout.addWidget(self.mic_btn)
 
         mic_layout.addStretch()
         layout.addLayout(mic_layout)
+
+    def _get_placeholder_text(self) -> str:
+        p_name = self.active_patient.name if self.active_patient else "Villager"
+        return f"Ready for consultation ({p_name}). Click the microphone below, describe your symptoms, then click again or wait 10 seconds."
+
+    def _update_citizen_display(self):
+        if not self.active_patient:
+            self.citizen_info_lbl.setText("👤 No Citizen Selected")
+            return
+
+        p = self.active_patient
+        cond_text = f" &bull; {', '.join(p.chronic_conditions)}" if p.chronic_conditions else ""
+        self.citizen_info_lbl.setText(
+            f"👤 <b>{p.name}</b> ({p.age_display_badge}, {p.gender}) &bull; ABHA: {p.abha_id} &bull; {p.village}{cond_text}"
+        )
+        if self.on_patient_changed:
+            self.on_patient_changed(f"{p.name} ({p.age_display_badge})")
+
+    def _open_citizen_search(self):
+        dialog = CitizenSearchDialog(parent=self, on_selected=self._on_citizen_selected)
+        dialog.exec() if hasattr(dialog, "exec") else dialog.exec_()
+
+    def _on_citizen_selected(self, patient: PatientRecord):
+        self.active_patient = patient
+        self._update_citizen_display()
+        self.placeholder_label.setText(self._get_placeholder_text())
+        logger.info(f"Active citizen switched to: {patient.name} ({patient.age_display_badge})")
 
     def _toggle_recording(self):
         """1-click starts 10-second recording or sends early if clicked again."""
@@ -177,18 +353,20 @@ class SpeechScreen(QWidget if HAS_QT else object):
             self.mic_btn.setEnabled(True)
             return
 
+        patient_profile = self.active_patient.to_dict() if self.active_patient else None
+
         # Launch pipeline worker on global thread pool
         worker = SpeechPipelineWorker(
             audio_data=wav_buf.getvalue(),
             language=self.active_language,
-            retriever=self.retriever
+            retriever=self.retriever,
+            patient_profile=patient_profile
         )
         worker.signals.status_changed.connect(self._update_status)
         worker.signals.emergency_alert.connect(self._show_emergency_alert)
         worker.signals.finished.connect(self._render_results)
         worker.signals.error.connect(self._handle_error)
 
-        # Hold strong reference so Python GC does not delete C++ WorkerSignals while thread runs
         self._active_worker = worker
         if self.thread_pool:
             self.thread_pool.start(worker)
@@ -236,26 +414,12 @@ class SpeechScreen(QWidget if HAS_QT else object):
                 "warnings": "खतरे के लक्षण जिन पर ध्यान दें:",
                 "referral": "रेफरल मार्गदर्शन:"
             },
-            "te": {
-                "query": "పేర్కొన్న లక్షణాలు / ప్రశ్న",
-                "guidance": "వైద్య మార్గదర్శకత్వం",
-                "actions": "సూచించిన తదుపరి చర్యలు:",
-                "warnings": "ప్రమాద సంకేతాలు:",
-                "referral": "సిఫార్సు మార్గదర్శకత్వం:"
-            },
-            "ml": {
-                "query": "റിപ്പോർട്ട് ചെയ്ത ലക്ഷണങ്ങൾ / ചോദ്യം",
-                "guidance": "ക്ലിനിക്കൽ മാർഗ്ഗനിർദ്ദേശം",
-                "actions": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ:",
-                "warnings": "ശ്രദ്ധിക്കേണ്ട അപകട ലക്ഷണങ്ങൾ:",
-                "referral": "റഫറൽ മാർഗ്ഗനിർദ്ദേശം:"
-            },
-            "kn": {
-                "query": "ವರದಿ ಮಾಡಿದ ಲಕ್ಷಣಗಳು / ಪ್ರಶ್ನೆ",
-                "guidance": "ವೈದ್ಯಕೀಯ ಮಾರ್ಗದರ್ಶನ",
-                "actions": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು:",
-                "warnings": "ಅಪಾಯದ ಲಕ್ಷಣಗಳು:",
-                "referral": "ರೆಫರಲ್ ಮಾರ್ಗದರ್ಶನ:"
+            "gu": {
+                "query": "જણાવેલ લક્ષણો / પ્રશ્ન",
+                "guidance": "તબીબી માર્ગદર્શન",
+                "actions": "ભલામણ કરેલ આગલા પગલાં:",
+                "warnings": "ધ્યાન રાખવા જેવા જોખમી લક્ષણો:",
+                "referral": "રેફરલ માર્ગદર્શન:"
             }
         }.get(self.active_language, {
             "query": "Reported Symptoms / Query",
@@ -289,6 +453,37 @@ class SpeechScreen(QWidget if HAS_QT else object):
         s_text.setWordWrap(True)
         s_layout.addWidget(s_header)
         s_layout.addWidget(s_text)
+
+        # 2b. Age & Risk Personalization Alert Card (Highlighting 50+ or Pediatric Guidance)
+        p = self.active_patient
+        if p and (p.age >= 50 or p.age < 12 or p.chronic_conditions):
+            age_frame = QFrame()
+            age_frame.setObjectName("AgeGuidanceCard")
+            age_layout = QVBoxLayout(age_frame)
+            age_title = QLabel(f"⚠️ Age & Risk Factor Precautions ({p.age_display_badge})")
+            age_title.setObjectName("AgeGuidanceTitle")
+            age_layout.addWidget(age_title)
+
+            age_msg = ""
+            if p.age >= 50:
+                age_msg = (
+                    f"Patient is {p.age} years old (Adult 50+). Monitor blood pressure and pulse twice daily. "
+                    "Ensure maximum daily Paracetamol does not exceed 2g/day and avoid NSAIDs if hypertensive. "
+                    "Seek medical evaluation if fever persists over 48 hours or causes confusion."
+                )
+            elif p.age < 12:
+                age_msg = (
+                    f"Pediatric patient ({p.age} years). Strictly avoid adult tablets. Use weight-based Paracetamol syrup only. "
+                    "Never give Aspirin (Reye's syndrome risk). Give frequent sips of ORS. Urgent referral if child refuses feeds."
+                )
+            if p.chronic_conditions:
+                age_msg += f"\nKnown Conditions: {', '.join(p.chronic_conditions)}"
+
+            age_body = QLabel(age_msg)
+            age_body.setObjectName("AgeGuidanceBody")
+            age_body.setWordWrap(True)
+            age_layout.addWidget(age_body)
+            s_layout.addWidget(age_frame)
 
         # Recommended Actions
         actions = res.get("recommended_actions", [])
@@ -332,9 +527,96 @@ class SpeechScreen(QWidget if HAS_QT else object):
             s_layout.addWidget(src_lbl)
 
         self.results_layout.addWidget(s_frame)
+
+        # 3. Patient Details Card at the End of Summary
+        if self.active_patient:
+            pat_frame = QFrame()
+            pat_frame.setObjectName("PatientSummaryCard")
+            pat_layout = QVBoxLayout(pat_frame)
+            pat_layout.setSpacing(6)
+
+            p_head = QLabel("📋 Citizen Health Profile & Assessment Record")
+            p_head.setStyleSheet("font-size: 16px; font-weight: bold; color: #38BDF8;")
+            pat_layout.addWidget(p_head)
+
+            p = self.active_patient
+            c_text = ", ".join(p.chronic_conditions) if p.chronic_conditions else "None Reported"
+            a_text = ", ".join(p.allergies) if p.allergies else "None Known"
+
+            info_text = (
+                f"<b>Name:</b> {p.name} &nbsp;&bull;&nbsp; "
+                f"<b>Age/Gender:</b> {p.age}y ({p.gender}) &nbsp;&bull;&nbsp; "
+                f"<b>ABHA ID:</b> {p.abha_id}<br>"
+                f"<b>Village:</b> {p.village} &nbsp;&bull;&nbsp; "
+                f"<b>Address:</b> {p.address} &nbsp;&bull;&nbsp; "
+                f"<b>Contact:</b> {p.phone}<br>"
+                f"<b>Pre-existing Conditions:</b> <span style='color: #F87171;'>{c_text}</span> &nbsp;&bull;&nbsp; "
+                f"<b>Allergies:</b> {a_text}"
+            )
+            pat_info = QLabel(info_text)
+            pat_info.setStyleSheet("color: #E2E8F0; font-size: 14px; line-height: 1.4;")
+            pat_info.setWordWrap(True)
+            pat_layout.addWidget(pat_info)
+            self.results_layout.addWidget(pat_frame)
+
+        # 4. Action Buttons (Print USB Slip & Start New Assessment)
+        action_box = QFrame()
+        action_layout = QHBoxLayout(action_box)
+        action_layout.setSpacing(16)
+
+        # USB Print Button
+        print_btn = QPushButton("🖨️ Print Clinical Slip (USB)")
+        print_btn.setObjectName("PrintBtn")
+        print_btn.setCursor(Qt.PointingHandCursor)
+        print_btn.clicked.connect(self._print_report)
+        action_layout.addWidget(print_btn)
+
+        # Finish & Start New Assessment Button
+        new_assess_btn = QPushButton("🔄 Finish & Start New Assessment")
+        new_assess_btn.setObjectName("NewAssessmentBtn")
+        new_assess_btn.setCursor(Qt.PointingHandCursor)
+        new_assess_btn.clicked.connect(self._start_new_assessment)
+        action_layout.addWidget(new_assess_btn)
+
+        self.results_layout.addWidget(action_box)
+
         self.mic_btn.setText("🎤 Click to Speak (10s)")
         self.mic_btn.setEnabled(True)
         self.mic_btn.setStyleSheet("")
+
+    def _print_report(self):
+        """Sends clinical slip directly to USB printer and archives PDF copy."""
+        if not self.last_result:
+            return
+        patient_dict = self.active_patient.to_dict() if self.active_patient else None
+        ok, msg = print_clinical_report(self, patient_dict, self.last_result, self.active_language)
+        if ok:
+            self.status_label.setText("Clinical slip dispatched to printer")
+            self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #10B981;")
+            if HAS_QT and QMessageBox is not None:
+                QMessageBox.information(self, "Clinical Assessment Printout", msg)
+
+    def _start_new_assessment(self):
+        """Cleans up current assessment state and prepares for next villager."""
+        tts_service.stop_speaking()
+        self.last_result = None
+        self.replay_btn.setVisible(False)
+        self.emergency_frame.setVisible(False)
+
+        # Clear existing result cards
+        while self.results_layout.count() > 1:
+            item = self.results_layout.takeAt(1)
+            if item.widget():
+                item.widget().deleteLater()
+
+        self.placeholder_label.setText(self._get_placeholder_text())
+        self.placeholder_label.setVisible(True)
+        self.status_label.setText("Ready to listen")
+        self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #00E8C6;")
+        self.mic_btn.setText("🎤 Click to Speak (10s)")
+        self.mic_btn.setEnabled(True)
+        self.mic_btn.setStyleSheet("")
+        logger.info("Assessment finished and reset for next citizen consultation.")
 
     def _replay_tts(self):
         """Re-synthesizes/plays the complete clinical guidance audio."""

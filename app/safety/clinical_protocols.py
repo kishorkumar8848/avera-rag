@@ -474,12 +474,19 @@ MAJOR_CLINICAL_PROTOCOLS: List[ClinicalProtocol] = [
 
 
 # -----------------------------------------------------------------------------
-# Fast Deterministic Protocol Matcher
+# Fast Deterministic Protocol Matcher with Age & Comorbidity Personalization
 # -----------------------------------------------------------------------------
-def lookup_clinical_protocol(query_text: str, language: str = "en") -> Optional[Dict[str, Any]]:
+def lookup_clinical_protocol(
+    query_text: str,
+    language: str = "en",
+    patient_age: Optional[int] = None,
+    patient_conditions: Optional[List[str]] = None,
+    patient_name: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     """
     Scans patient query against curated MoHFW clinical guidelines.
-    Returns matched structured clinical guidance dictionary if high confidence match found.
+    Dynamically personalizes guidance based on patient age (pediatric, 50+ adult, geriatric)
+    and chronic comorbidities (hypertension, diabetes, pregnancy).
     """
     if not query_text:
         return None
@@ -506,8 +513,8 @@ def lookup_clinical_protocol(query_text: str, language: str = "en") -> Optional[
     if best_match and highest_score > 0:
         # Resolve localized strings with English fallback
         summary_txt = best_match.summary.get(lang_code, best_match.summary.get("en", ""))
-        home_care_list = best_match.home_care.get(lang_code, best_match.home_care.get("en", []))
-        warnings_list = best_match.warning_signs.get(lang_code, best_match.warning_signs.get("en", []))
+        home_care_list = list(best_match.home_care.get(lang_code, best_match.home_care.get("en", [])))
+        warnings_list = list(best_match.warning_signs.get(lang_code, best_match.warning_signs.get("en", [])))
         referral_txt = best_match.referral_guidance.get(lang_code, best_match.referral_guidance.get("en", ""))
 
         # Localized condition name
@@ -519,6 +526,54 @@ def lookup_clinical_protocol(query_text: str, language: str = "en") -> Optional[
         }
         localized_name = name_map.get(lang_code, best_match.english_name)
 
+        # ---------------------------------------------------------------------
+        # Dynamic Age & Comorbidity Personalization
+        # ---------------------------------------------------------------------
+        age_guidance_text = ""
+        conditions_clean = [c.lower() for c in (patient_conditions or [])]
+
+        if patient_age is not None:
+            if patient_age >= 50:
+                # Older Adult / Geriatric (50+ years)
+                age_advisories = {
+                    "en": f"Special Care Note (Age {patient_age}): Monitor blood pressure and pulse twice daily. Keep Paracetamol within 2g/day max and strictly avoid NSAIDs like Ibuprofen if hypertensive. Seek immediate medical evaluation if fever persists over 48 hours or causes confusion.",
+                    "ta": f"வயது {patient_age} சிறப்பு வழிகாட்டுதல்: நோயாளியின் வயது {patient_age} என்பதால், இரத்த அழுத்தத்தை (BP) தினமும் இருமுறை கண்காணிக்கவும். பாராசிட்டமால் அளவை நாள் ஒன்றுக்கு 2 கிராமுக்கு மேல் எடுக்க வேண்டாம். காய்ச்சல் 48 மணி நேரத்திற்கு மேல் நீடித்தாலோ அல்லது அதீத சோர்வு ஏற்பட்டாலோ உடனடியாக மருத்துவரை அணுகவும்.",
+                    "hi": f"आयु {patient_age} विशेष सलाह: मरीज की उम्र {patient_age} वर्ष होने के कारण रक्तचाप (बीपी) की नियमित जांच करें। पेरासिटामोल 2 ग्राम/दिन से अधिक न लें और पेनकिलर से बचें। यदि बुखार 48 घंटे से अधिक रहे तो तुरंत डॉक्टर को दिखाएं।",
+                    "gu": f"ઉંમર {patient_age} વિશેષ સલાહ: દર્દીની ઉંમર {patient_age} વર્ષ હોવાથી બ્લડ પ્રેશર (BP) નિયમિત તપાસો. પેરાસિટામોલ દિવસમાં 2 ગ્રામથી વધુ ન લેવી. તાવ 48 કલાકથી વધુ રહે તો તાત્કાલિક ડૉક્ટરની સલાહ લો."
+                }
+                age_guidance_text = age_advisories.get(lang_code, age_advisories["en"])
+                home_care_list.insert(0, age_guidance_text)
+
+            elif patient_age < 12:
+                # Pediatric (<12 years)
+                ped_advisories = {
+                    "en": f"Pediatric Care Note (Age {patient_age}y): Strictly avoid adult tablets. Use weight-based Paracetamol syrup only (10-15 mg/kg). Never give Aspirin (Reye's syndrome risk). Give frequent sips of ORS. Urgent referral if child refuses feeds, develops sunken eyes, or breathes rapidly.",
+                    "ta": f"குழந்தை பராமரிப்பு வழிகாட்டுதல் (வயது {patient_age}): பெரியவர்களுக்கான மாத்திரைகளை கொடுக்க வேண்டாம். உடல் எடைக்கு ஏற்ற பாராசிட்டமால் சிரப் மட்டுமே பயன்படுத்தவும். ஆஸ்பிரின் மாத்திரை கண்டிப்பாகக் கூடாது. ஓ.ஆர்.எஸ் திரவம் அடிக்கடி கொடுக்கவும். குழந்தை தாய்ப்பால்/உணவு மறுத்தாலோ அல்லது மூச்சு வேகமாக விட்டாலோ உடனே மருத்துவமனைக்கு செல்லவும்.",
+                    "hi": f"बाल रोग विशेष सलाह (आयु {patient_age} वर्ष): वयस्कों की गोलियां बिल्कुल न दें। केवल वजन अनुसार पेरासिटामोल सिरप दें। एस्पिरिन कभी न दें। बार-बार थोड़ा-थोड़ा ओआरएस घोल पिलाएं। यदि बच्चा सुस्त हो या सांस तेज ले तो तुरंत अस्पताल ले जाएं।",
+                    "gu": f"બાળ સંભાળ સલાહ (ઉંમર {patient_age} વર્ષ): પુખ્ત વયની ગોળીઓ ન આપવી. માત્ર વજન મુજબ પેરાસિટામોલ સીરપ આપવી. એસ્પિરિન બિલકુલ ન આપવી. વારંવાર ORS આપવું. જો બાળક સુસ્ત લાગે તો તરત જ ડૉક્ટર પાસે લઈ જવું."
+                }
+                age_guidance_text = ped_advisories.get(lang_code, ped_advisories["en"])
+                home_care_list.insert(0, age_guidance_text)
+
+        # Comorbidity alerts (Hypertension / Diabetes / Pregnancy)
+        if any("hypertension" in c or "bp" in c for c in conditions_clean):
+            htn_alert = {
+                "en": "Hypertension Caution: Avoid oral nasal decongestants and NSAIDs (Ibuprofen/Diclofenac) which elevate blood pressure.",
+                "ta": "இரத்த அழுத்த எச்சரிக்கை: இரத்த அழுத்தத்தை அதிகரிக்கும் இப்யூபுரூஃபன் மற்றும் மூக்கடைப்பு நீக்கும் மருந்துகளைத் தவிர்க்கவும்.",
+                "hi": "उच्च रक्तचाप सावधानी: इबुप्रोफेन और डिकॉन्गेस्टेंट दवाओं से बचें जो रक्तचाप बढ़ा सकती हैं।",
+                "gu": "હાઈ બ્લડ પ્રેશર સાવધાની: બ્લડ પ્રેશર વધારે તેવી આઈબુપ્રોફેન જેવી દવાઓ ટાળો."
+            }
+            home_care_list.append(htn_alert.get(lang_code, htn_alert["en"]))
+
+        if any("pregnant" in c or "pregnancy" in c for c in conditions_clean):
+            preg_alert = {
+                "en": "Antenatal Alert: Pregnant patient. Any acute febrile illness or abdominal discomfort requires urgent evaluation at Primary Health Centre (PHC).",
+                "ta": "கர்ப்பிணிப் பெண் எச்சரிக்கை: கர்ப்பிணிப் பெண்களுக்கு ஏற்படும் தீவிர காய்ச்சலுக்கு உடனடியாக ஆரம்ப சுகாதார நிலையத்தை (PHC) அணுக வேண்டும்.",
+                "hi": "गर्भावस्था चेतावनी: किसी भी तेज बुखार के लिए तुरंत प्राथमिक स्वास्थ्य केंद्र (PHC) से संपर्क करें।",
+                "gu": "સગર્ભાવસ્થા સાવધાની: સગર્ભા દર્દી માટે કોઈપણ તીવ્ર તાવ માટે તાત્કાલિક પ્રાથમિક આરોગ્ય કેન્દ્ર (PHC) નો સંપર્ક કરવો."
+            }
+            warnings_list.insert(0, preg_alert.get(lang_code, preg_alert["en"]))
+
         return {
             "condition_id": best_match.condition_id,
             "category": best_match.category,
@@ -528,7 +583,9 @@ def lookup_clinical_protocol(query_text: str, language: str = "en") -> Optional[
             "warning_signs": warnings_list,
             "referral": referral_txt,
             "citation": f"MoHFW National Treatment Guidelines: {best_match.english_name}",
-            "confidence": 0.95
+            "confidence": 0.95,
+            "age_guidance": age_guidance_text
         }
 
     return None
+

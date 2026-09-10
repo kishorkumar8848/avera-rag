@@ -45,14 +45,17 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
         self,
         audio_data: bytes,
         language: str,
-        retriever: HybridRetriever
+        retriever: HybridRetriever,
+        patient_profile: Optional[Dict[str, Any]] = None
     ):
         if HAS_QT:
             super().__init__()
         self.audio_data = audio_data
         self.language = language
         self.retriever = retriever
+        self.patient_profile = patient_profile
         self.signals = WorkerSignals() if HAS_QT else None
+
 
     @Slot()
     def run(self):
@@ -89,8 +92,10 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
                         "recommended_actions": ["Call 108 / 112 emergency services immediately.", "Keep patient calm and still."],
                         "warning_signs": ["Immediate danger to life or vital organs."],
                         "referral": "Nearest Emergency Department or Community Health Centre.",
-                        "sources": ["National Emergency Triage Protocol"]
+                        "sources": ["National Emergency Triage Protocol"],
+                        "patient_profile": self.patient_profile
                     })
+
                 return
 
             # 3. NMT (Indic speech query -> English medical query)
@@ -111,9 +116,11 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
             self._emit_status("Preparing guidance...")
             response_schema, qwen_ms = qwen_backend.generate_clinical_guidance(
                 query=english_query,
-                retrieved_context=retrieved_docs[:settings.TOP_K_CONTEXT]
+                retrieved_context=retrieved_docs[:settings.TOP_K_CONTEXT],
+                patient_profile=self.patient_profile
             )
             latencies["qwen_ms"] = qwen_ms
+
 
             # 6. NMT back to target language (if non-English)
             final_summary = response_schema.summary
@@ -162,8 +169,10 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
             ui_result["is_emergency"] = False
             ui_result["latencies"] = latencies
             ui_result["total_ms"] = round(total_ms, 1)
+            ui_result["patient_profile"] = self.patient_profile
 
             if self.signals:
+
                 try:
                     self.signals.finished.emit(ui_result)
                 except RuntimeError:
@@ -232,7 +241,8 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
         speech_audio: Optional[Any],
         text_query: Optional[str],
         language: str,
-        retriever: HybridRetriever
+        retriever: HybridRetriever,
+        patient_profile: Optional[Dict[str, Any]] = None
     ):
         if HAS_QT:
             super().__init__()
@@ -241,7 +251,9 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
         self.text_query = text_query
         self.language = language
         self.retriever = retriever
+        self.patient_profile = patient_profile
         self.signals = WorkerSignals() if HAS_QT else None
+
 
     @Slot()
     def run(self):
@@ -304,9 +316,11 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
             response_schema, qwen_ms = qwen_backend.generate_clinical_guidance(
                 query=english_query,
                 retrieved_context=retrieved_docs[:settings.TOP_K_CONTEXT],
-                visual_observations=observations
+                visual_observations=observations,
+                patient_profile=self.patient_profile
             )
             latencies["qwen_ms"] = qwen_ms
+
 
             # 7. Translation & TTS
             final_summary = response_schema.summary
@@ -353,8 +367,10 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
             ui_result["is_emergency"] = False
             ui_result["latencies"] = latencies
             ui_result["total_ms"] = round(total_ms, 1)
+            ui_result["patient_profile"] = self.patient_profile
 
             if self.signals:
+
                 try:
                     self.signals.finished.emit(ui_result)
                 except RuntimeError:

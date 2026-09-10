@@ -42,10 +42,9 @@ class VyomaKioskApp(QMainWindow if HAS_QT else object):
             self._init_telemetry_timer()
 
     def _init_window(self):
-        self.setWindowTitle("Vyoma Offline Medical AI Assistant")
-        self.setFixedSize(settings.UI_WIDTH, settings.UI_HEIGHT)
-        if settings.FULLSCREEN:
-            self.showFullScreen()
+        self.setWindowTitle("Vyoma Offline Medical AI Assistant - ASHA Village Health Kiosk")
+        self.setMinimumSize(960, 560)
+        self.resize(settings.UI_WIDTH, settings.UI_HEIGHT)
         self.setStyleSheet(KIOSK_STYLESHEET)
 
         # Central container
@@ -54,6 +53,11 @@ class VyomaKioskApp(QMainWindow if HAS_QT else object):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
         self.setCentralWidget(self.central_widget)
+
+        if settings.FULLSCREEN:
+            self.showFullScreen()
+        else:
+            self.showMaximized()
 
     def _init_topbar(self):
         self.top_bar = QFrame()
@@ -77,16 +81,29 @@ class VyomaKioskApp(QMainWindow if HAS_QT else object):
         bar_layout.addWidget(self.back_btn)
 
         # Title
-        self.title_lbl = QLabel("Vyoma Offline Medical AI")
+        self.title_lbl = QLabel("Vyoma ASHA Medical AI")
         self.title_lbl.setObjectName("TopBarTitle")
         bar_layout.addWidget(self.title_lbl)
 
         bar_layout.addStretch()
 
+        # Active Citizen Badge
+        self.patient_badge = QLabel("👤 Patient: Not Selected")
+        self.patient_badge.setObjectName("TopBarStatus")
+        self.patient_badge.setStyleSheet("color: #38BDF8; font-weight: 600; background: #0F172A; padding: 4px 10px; border-radius: 6px;")
+        bar_layout.addWidget(self.patient_badge)
+
         # Language Badge
         self.lang_badge = QLabel("Lang: EN")
         self.lang_badge.setObjectName("TopBarStatus")
         bar_layout.addWidget(self.lang_badge)
+
+        # Fullscreen Toggle Button
+        self.fs_btn = QPushButton("⛶ Fullscreen")
+        self.fs_btn.setObjectName("NavBtn")
+        self.fs_btn.setCursor(Qt.PointingHandCursor)
+        self.fs_btn.clicked.connect(self.toggle_fullscreen)
+        bar_layout.addWidget(self.fs_btn)
 
         # Hardware Telemetry Badge (RAM & CPU)
         self.telemetry_lbl = QLabel("RAM: -- | CPU: --")
@@ -94,6 +111,7 @@ class VyomaKioskApp(QMainWindow if HAS_QT else object):
         bar_layout.addWidget(self.telemetry_lbl)
 
         self.main_layout.addWidget(self.top_bar)
+
 
     def _init_screens(self):
         self.stack = QStackedWidget()
@@ -111,7 +129,12 @@ class VyomaKioskApp(QMainWindow if HAS_QT else object):
 
         # Screen 2: Speech Assistant Screen
         self.screen_speech = SpeechScreen(retriever=self.retriever)
+        self.screen_speech.on_patient_changed = self.update_active_patient_display
+        if getattr(self.screen_speech, "active_patient", None):
+            p = self.screen_speech.active_patient
+            self.update_active_patient_display(f"{p.name} ({p.age_display_badge})")
         self.stack.addWidget(self.screen_speech)
+
 
         # Screen 3: Camera + Speech Screen
         self.screen_camera = CameraScreen(retriever=self.retriever)
@@ -168,9 +191,37 @@ class VyomaKioskApp(QMainWindow if HAS_QT else object):
         self.home_btn.setEnabled(curr != 0)
         self.back_btn.setEnabled(curr != 0)
 
+    def toggle_fullscreen(self):
+
+        """Toggles between Fullscreen and Maximized Window."""
+        if self.isFullScreen():
+            self.showMaximized()
+            self.fs_btn.setText("⛶ Fullscreen")
+        else:
+            self.showFullScreen()
+            self.fs_btn.setText("🗗 Windowed")
+
+    def keyPressEvent(self, event):
+        """Hotkeys: F11 for Fullscreen toggle, Esc to exit Fullscreen."""
+        key = event.key()
+        f11_key = getattr(Qt, "Key_F11", 0x0100003a)
+        esc_key = getattr(Qt, "Key_Escape", 0x01000000)
+        if key == f11_key:
+            self.toggle_fullscreen()
+        elif key == esc_key and self.isFullScreen():
+            self.showMaximized()
+            self.fs_btn.setText("⛶ Fullscreen")
+        else:
+            super().keyPressEvent(event)
+
+    def update_active_patient_display(self, patient_summary: str):
+        """Updates persistent top-bar badge with active citizen."""
+        self.patient_badge.setText(f"👤 {patient_summary}")
+
     def closeEvent(self, event):
         monitor.stop()
         event.accept()
+
 
 
 def run_ui():

@@ -40,7 +40,10 @@ indexes/test*
 # Runtime logs, temporary audio & telemetry
 logs/*
 !logs/.gitkeep
+reports/*
+!reports/.gitkeep
 *.wav
+
 *.mp3
 *.ogg
 *.png

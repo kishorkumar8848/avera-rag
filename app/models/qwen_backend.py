@@ -153,18 +153,27 @@ class QwenBackend:
         self,
         query: str,
         retrieved_context: List[Dict[str, Any]],
-        visual_observations: Optional[List[str]] = None
-    ) -> Tuple[MedicalResponseSchema, float]:
+        visual_observations: Optional[List[str]] = None,
+        patient_profile: Optional[Dict[str, Any]] = None
+    ) -> Tuple[Optional[MedicalResponseSchema], float]:
         """
-        Executes grounded clinical generation with prompt formatting,
+        Generates grounded, non-diagnostic clinical advice with few-shot guidance,
         JSON schema enforcement, and 1x retry on validation error.
         Returns:
             (validated_schema: MedicalResponseSchema, latency_ms: float)
         """
         start_time = time.time()
 
+        patient_age = patient_profile.get("age") if patient_profile else None
+        patient_conditions = patient_profile.get("chronic_conditions") if patient_profile else None
+
         # Check for direct match against verified MoHFW Major Clinical Protocols
-        matched_protocol = lookup_clinical_protocol(query, language="en")
+        matched_protocol = lookup_clinical_protocol(
+            query,
+            language="en",
+            patient_age=patient_age,
+            patient_conditions=patient_conditions
+        )
         if matched_protocol:
             protocol_block = {
                 "title": matched_protocol["condition_name"],
@@ -186,7 +195,21 @@ class QwenBackend:
             context_blocks.append(f"--- Evidence Chunk {idx} ---\nSource: {source_citation}\n{summary}")
         full_context_text = "\n\n".join(context_blocks)
 
-        user_content = f"Patient Query: {query}\n\n"
+        user_content = ""
+        if patient_profile:
+            p_name = patient_profile.get("name", "Citizen")
+            p_age = patient_profile.get("age", "Unknown")
+            p_gender = patient_profile.get("gender", "")
+            p_conds = ", ".join(patient_profile.get("chronic_conditions", [])) or "None reported"
+            p_allergies = ", ".join(patient_profile.get("allergies", [])) or "None"
+            user_content += (
+                f"PATIENT PROFILE:\n"
+                f"- Name: {p_name} | Age: {p_age} years | Gender: {p_gender}\n"
+                f"- Known Comorbidities: {p_conds}\n"
+                f"- Known Allergies: {p_allergies}\n\n"
+            )
+
+        user_content += f"Patient Query: {query}\n\n"
         if visual_observations:
             user_content += f"Visual Observations: {', '.join(visual_observations)}\n\n"
         user_content += f"Retrieved Medical Evidence:\n{full_context_text}\n\nProvide structured clinical guidance:"
