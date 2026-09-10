@@ -61,8 +61,9 @@ class NMTService:
         """Corrects common ASR phonetic variations in Indic medical queries."""
         if not text:
             return text
+        import re
+
         if lang == "ta":
-            import re
             # 1. Spoken Tamil ASR transcribes 'சலி' (boredom) instead of 'சளி' (cold / phlegm)
             text = re.sub(r'(\s|^)சலி(\s|$|[\?\.\,\!])', r'\1சளி\2', text)
             text = re.sub(r'(\s|^)சலிப்பு(\s|$|[\?\.\,\!])', r'\1சளி\2', text)
@@ -70,6 +71,7 @@ class NMTService:
             # 2. Spoken Tamil typos for fever: காயச்சல் / காச்சல் -> காய்ச்சல்
             text = text.replace("காயச்சல்", "காய்ச்சல்")
             text = text.replace("காச்சல்", "காய்ச்சல்")
+            text = text.replace("காய்ச்சல் அடிக்குது", "காய்ச்சல்")
 
             # 3. 'மட்டும்' between symptoms heard instead of 'மற்றும்' (and)
             text = re.sub(
@@ -84,8 +86,32 @@ class NMTService:
                 text = text.replace(f"{body_part} வளி", f"{body_part} வலி")
                 text = text.replace(f"{body_part}வளி", f"{body_part} வலி")
 
-            # 5. Cough typo: இருமள் -> இருமல்
+            # 5. Cough variations: இருமள் -> இருமல்
             text = text.replace("இருமள்", "இருமல்")
+            text = text.replace("இருமல் வருது", "இருமல்")
+
+            # 6. Breathlessness variations: மூச்சடைப்பு / மூச்சு தினறல் -> மூச்சுத் திணறல்
+            text = text.replace("மூச்சடைப்பு", "மூச்சுத் திணறல்")
+            text = text.replace("மூச்சு தினறல்", "மூச்சுத் திணறல்")
+            text = text.replace("மூச்சு தனறல்", "மூச்சுத் திணறல்")
+
+        elif lang == "hi":
+            # Common Hindi ASR variations
+            text = text.replace("खासी", "खांसी")
+            text = text.replace("जुखाम", "जुकाम")
+            text = text.replace("सरदर्द", "सिरदर्द")
+            text = text.replace("सर दर्द", "सिरदर्द")
+            text = text.replace("पेट का दर्द", "पेट दर्द")
+            text = text.replace("छाती में दर्द", "सीने में दर्द")
+            text = text.replace("उलटी", "उल्टी")
+            text = text.replace("पतले दस्त", "दस्त")
+
+        elif lang == "gu":
+            # Common Gujarati ASR variations
+            text = text.replace("સિરદર્દ", "માથાનો દુખાવો")
+            text = text.replace("માથુ દુખે", "માથાનો દુખાવો")
+            text = text.replace("છાતી નો દુખાવો", "છાતીમાં દુખાવો")
+            text = text.replace("ઝાડા ઉલટી", "ઝાડા અને ઉલટી")
 
         return text.strip()
 

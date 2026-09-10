@@ -96,3 +96,44 @@ def test_clinical_policy_fail_safe():
     safe2, reason2 = ClinicalPolicyEngine.check_safety_guards(rag_score=0.1)
     assert safe2 is False
     assert "reliable" in reason2.lower()
+
+
+def test_clinical_protocol_lookup():
+    from app.safety.clinical_protocols import lookup_clinical_protocol, MAJOR_CLINICAL_PROTOCOLS
+
+    # 1. English lookup
+    p_en = lookup_clinical_protocol("Patient running high temperature and acute fever", language="en")
+    assert p_en is not None
+    assert p_en["condition_id"] == "acute_viral_fever"
+    assert "febrile" in p_en["summary"].lower() or "fever" in p_en["summary"].lower()
+
+
+    # 2. Tamil lookup (காய்ச்சல்)
+    p_ta = lookup_clinical_protocol("எனக்கு இரண்டு நாட்களாக கடும் காய்ச்சல் மற்றும் இருமல் இருக்கு", language="ta")
+    assert p_ta is not None
+    assert p_ta["condition_id"] == "acute_viral_fever"
+    assert "காய்ச்சல்" in p_ta["condition_name"] or "காய்ச்ச" in p_ta["summary"]
+    assert len(p_ta["recommended_actions"]) > 0
+    assert len(p_ta["warning_signs"]) > 0
+
+
+    # 3. Hindi lookup (बुखार)
+    p_hi = lookup_clinical_protocol("मुझे दो दिन से तेज बुखार और सिरदर्द है", language="hi")
+    assert p_hi is not None
+    assert p_hi["condition_id"] == "acute_viral_fever"
+    assert "बुखार" in p_hi["summary"]
+
+    # 4. Gujarati lookup (તાવ)
+    p_gu = lookup_clinical_protocol("મને બે દિવસથી ખૂબ તાવ આવે છે", language="gu")
+    assert p_gu is not None
+    assert p_gu["condition_id"] == "acute_viral_fever"
+    assert "તાવ" in p_gu["summary"]
+
+    # 5. Chest pain lookup
+    p_chest = lookup_clinical_protocol("நெஞ்சு வலி மற்றும் மூச்சு திணறல்", language="ta")
+    assert p_chest is not None
+    assert p_chest["condition_id"] == "acute_cardiac_emergency"
+    assert len(p_chest["warning_signs"]) > 0
+
+
+

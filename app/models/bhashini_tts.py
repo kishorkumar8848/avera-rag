@@ -38,6 +38,18 @@ ESPEAK_VOICE_MAP = {
     "en": "en-us"
 }
 
+PYTTSX3_VOICE_MAP = {
+    "ta": ["dra/ta", "tamil", "ta"],
+    "hi": ["inc/hi", "hindi", "hi"],
+    "gu": ["inc/gu", "gujarati", "gu"],
+    "en": ["gmw/en-us", "en-us", "english", "en"],
+    "ml": ["dra/ml", "malayalam", "ml"],
+    "te": ["dra/te", "telugu", "te"],
+    "kn": ["inc/kn", "kannada", "kn"],
+    "mr": ["inc/mr", "marathi", "mr"],
+    "bn": ["inc/bn", "bengali", "bn"]
+}
+
 
 class TTSService:
     """
@@ -152,7 +164,25 @@ class TTSService:
             def _run_pyttsx3():
                 try:
                     engine = pyttsx3.init()
-                    engine.setProperty("rate", 150)
+                    engine.setProperty("rate", 140)
+
+                    # Select best available voice for language
+                    target_keys = PYTTSX3_VOICE_MAP.get(lang, ["en"])
+                    voices = engine.getProperty("voices") or []
+                    selected_voice = None
+                    for target in target_keys:
+                        for v in voices:
+                            vid = str(v.id).lower()
+                            vname = str(v.name).lower()
+                            if target == vid or target in vid or target in vname:
+                                selected_voice = v.id
+                                break
+                        if selected_voice:
+                            break
+
+                    if selected_voice:
+                        engine.setProperty("voice", selected_voice)
+
                     engine.save_to_file(text, tmp_out.name)
                     engine.runAndWait()
                     engine.stop()
@@ -161,7 +191,7 @@ class TTSService:
 
             worker = threading.Thread(target=_run_pyttsx3, daemon=True)
             worker.start()
-            worker.join(timeout=3.0)
+            worker.join(timeout=4.0)
 
             if os.path.exists(tmp_out.name) and os.path.getsize(tmp_out.name) > 200:
                 with open(tmp_out.name, "rb") as f:

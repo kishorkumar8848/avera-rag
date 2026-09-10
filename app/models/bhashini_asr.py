@@ -11,19 +11,33 @@ from app.core.logging import logger
 from app.models.manager import model_manager
 
 
-def _resolve_local_whisper_path(model_size: str = "tiny") -> str:
+# Clinical domain-specific initial prompts to bias Whisper decoder toward medical vocabulary
+MEDICAL_INITIAL_PROMPTS = {
+    "ta": "மருத்துவ உரையாடல்: நோயாளிக்கு காய்ச்சல், குளிர், சளி, கடுமையான இருமல், தலைவலி, நெஞ்சு வலி, மூச்சுத் திணறல், வாந்தி, வயிற்று வலி, உடல் சோர்வு, மயக்கம் போன்ற அறிகுறிகள் உள்ளன.",
+    "hi": "चिकित्सीय परामर्श: मरीज को तेज बुखार, ठंड लगना, खांसी, जुकाम, सिरदर्द, सीने में दर्द, सांस लेने में तकलीफ, उल्टी, पेट दर्द, बदन दर्द, कमजोरी के लक्षण हैं।",
+    "gu": "તબીબી પરામર્શ: દર્દીને તાવ, શરદી, ઉધરસ, માથાનો દુખાવો, છાતીમાં દુખાવો, શ્વાસ લેવામાં તકલીફ, ઉલટી, પેટમાં દુખાવો, નબળાઈ જેવા લક્ષણો છે.",
+    "en": "Clinical consultation: Patient presents with acute symptoms such as high fever, chills, persistent cough, cold, severe headache, chest pain, shortness of breath, nausea, abdominal pain, body ache.",
+    "ml": "ചികിത്സാ സംഭാഷണം: രോഗിക്ക് പനി, ചുമ, ജലദോഷം, തലവേദന, ശ്വാസംമുട്ടൽ, ഛർദ്ദി, വയറുവേദന, നെഞ്ചുവേദന എന്നീ ലಕ್ಷಣങ്ങൾ ഉണ്ട്.",
+    "te": "వైద్య సంప్రదింపులు: రోగికి జ్వరం, దగ్గు, జలుబు, తలనొప్పి, ఛాతీ నొప్పి, శ్వాస తీసుకోవడంలో ఇబ్బంది, వాంతులు, కడుపు నొప్పి వంటి లక్షణాలు ఉన్నాయి.",
+    "kn": "ವೈದ್ಯಕೀಯ ಸಮಾಲೋಚನೆ: ರೋಗಿಗೆ ಜ್ವರ, ಕೆಮ್ಮು, ನೆಗಡಿ, ತಲೆನೋವು, ಎದೆನೋವು, ಉಸಿರಾಟದ ತೊಂದರೆ, ವಾಂತಿ, ಹೊಟ್ಟೆನೋವು ಲಕ್ಷಣಗಳಿವೆ."
+}
+
+
+def _resolve_local_whisper_path(model_size: str = "base") -> str:
     """Finds local snapshot or cached model directory to avoid any HuggingFace hub network calls."""
     # 1. Check local project models/ directory
-    local_proj = settings.resolve_path(f"models/faster-whisper-{model_size}")
-    if local_proj.exists() and (local_proj / "model.bin").exists():
-        return str(local_proj)
+    for size in [model_size, "base", "tiny"]:
+        local_proj = settings.resolve_path(f"models/faster-whisper-{size}")
+        if local_proj.exists() and (local_proj / "model.bin").exists():
+            return str(local_proj)
 
-    # 2. Check user's HuggingFace hub cache
-    hf_hub = Path.home() / ".cache" / "huggingface" / "hub" / f"models--Systran--faster-whisper-{model_size}" / "snapshots"
-    if hf_hub.exists():
-        for snap in hf_hub.iterdir():
-            if snap.is_dir() and (snap / "model.bin").exists():
-                return str(snap)
+    # 2. Check user's HuggingFace hub cache (prefer base if present on device)
+    for size in [model_size, "base", "tiny"]:
+        hf_hub = Path.home() / ".cache" / "huggingface" / "hub" / f"models--Systran--faster-whisper-{size}" / "snapshots"
+        if hf_hub.exists():
+            for snap in hf_hub.iterdir():
+                if snap.is_dir() and (snap / "model.bin").exists():
+                    return str(snap)
 
     return model_size
 
@@ -32,8 +46,8 @@ class ASRService:
     """
     Unified Offline ASR abstraction layer:
     Interface: transcribe(audio, language) -> (text, confidence, latency_ms)
-    Primary: In-process Local Bhashini ONNX Conformer ASR (offline hi/ta).
-    Secondary / Multilingual: Local Faster-Whisper (offline ml/kn/te/en/hi/ta).
+    Primary: Local Faster-Whisper with Medical Initial Prompts (offline ta/hi/gu/en/ml).
+    Secondary: In-process Local Bhashini ONNX Conformer ASR.
     Strictly local execution - NO external cloud or API calls.
     """
 
@@ -51,7 +65,8 @@ class ASRService:
             try:
                 bhashini_dir = settings.resolve_path("bhashini_models")
                 ckpt_dir = bhashini_dir / "asr" / "checkpoints"
-                if ckpt_dir.exists() and (ckpt_dir / "hi-conformer.onnx").exists():
+                # Check both ONNX and external weight data file
+                if ckpt_dir.exists() and (ckpt_dir / "hi-conformer.onnx").exists() and (ckpt_dir / "hi-conformer.onnx.data").exists():
                     if str(bhashini_dir) not in sys.path:
                         sys.path.insert(0, str(bhashini_dir))
                     from asr.infer import ASRInference
@@ -63,12 +78,17 @@ class ASRService:
                 logger.warning(f"Could not load in-process Bhashini Conformer ASR: {e}")
         return self._local_bhashini_asr
 
-    def load_whisper_benchmark(self, model_size: str = "tiny") -> bool:
-        """Loads Faster-Whisper strictly offline for multilingual ASR."""
+    def load_whisper_benchmark(self, model_size: str = "base") -> bool:
+        """Loads Faster-Whisper strictly offline with GPU acceleration."""
         try:
             from faster_whisper import WhisperModel
             import torch
             device = "cuda" if torch.cuda.is_available() else "cpu"
+            if device == "cuda":
+                try:
+                    torch.cuda.set_device(0)
+                except Exception:
+                    pass
             compute_type = "float16" if device == "cuda" else "int8"
             model_path = _resolve_local_whisper_path(model_size)
             logger.info(f"Loading offline Faster-Whisper from '{model_path}' on {device} ({compute_type})...")
@@ -83,6 +103,7 @@ class ASRService:
     def transcribe(self, audio_data: Any, language: str = "en") -> Tuple[str, float, float]:
         """
         Transcribes audio buffer or WAV bytes 100% offline.
+        Uses medical domain initial prompts for enhanced symptom recognition accuracy.
         Returns:
             (transcribed_text: str, confidence: float, latency_ms: float)
         """
@@ -104,7 +125,29 @@ class ASRService:
         if not wav_bytes or len(wav_bytes) < 100:
             return "", 0.0, (time.time() - start_time) * 1000.0
 
-        # Attempt 1: In-process Local Bhashini Conformer ASR (Optimized for Hindi and Tamil)
+        # Attempt 1: Local Faster-Whisper with Medical Initial Prompt (Best accuracy across ta, hi, gu, en, ml)
+        if self.whisper_model is not None or self.load_whisper_benchmark("base") or self.load_whisper_benchmark("tiny"):
+            try:
+                from faster_whisper.tokenizer import _LANGUAGE_CODES
+                whisper_lang = lang if lang in _LANGUAGE_CODES else "en"
+                initial_prompt = MEDICAL_INITIAL_PROMPTS.get(whisper_lang, MEDICAL_INITIAL_PROMPTS["en"])
+
+                segments, info = self.whisper_model.transcribe(
+                    io.BytesIO(wav_bytes),
+                    language=whisper_lang,
+                    initial_prompt=initial_prompt,
+                    beam_size=1
+                )
+                text = " ".join([s.text for s in segments]).strip()
+                if text:
+                    conf = 0.90
+                    latency_ms = (time.time() - start_time) * 1000.0
+                    logger.info(f"Offline Faster-Whisper transcribed '{text}' [{whisper_lang}] ({latency_ms:.1f}ms).")
+                    return text, conf, latency_ms
+            except Exception as e:
+                logger.error(f"Offline Faster-Whisper error: {e}")
+
+        # Attempt 2: In-process Local Bhashini Conformer ASR (Fallback for Hindi and Tamil if weights present)
         if lang in ["hi", "ta"]:
             local_asr = self._get_local_bhashini_asr()
             if local_asr is not None and lang in getattr(local_asr, "sessions", {}):
@@ -115,28 +158,9 @@ class ASRService:
                     if text:
                         latency_ms = (time.time() - start_time) * 1000.0
                         logger.info(f"In-process Bhashini ASR transcribed '{text}' ({latency_ms:.1f}ms).")
-                        return text, 0.90, latency_ms
+                        return text, 0.85, latency_ms
                 except Exception as e:
-                    logger.warning(f"In-process Bhashini ASR failed: {e}. Falling back to Faster-Whisper...")
-
-        # Attempt 2: Local Faster-Whisper (Supports all Indic languages: ml, kn, te, hi, ta, bn, mr, gu, pa, en)
-        if self.whisper_model is not None or self.load_whisper_benchmark("tiny"):
-            try:
-                from faster_whisper.tokenizer import _LANGUAGE_CODES
-                whisper_lang = lang if lang in _LANGUAGE_CODES else "en"
-
-                segments, info = self.whisper_model.transcribe(
-                    io.BytesIO(wav_bytes),
-                    language=whisper_lang,
-                    beam_size=1
-                )
-                text = " ".join([s.text for s in segments]).strip()
-                conf = 0.85 if text else 0.2
-                latency_ms = (time.time() - start_time) * 1000.0
-                logger.info(f"Offline Faster-Whisper transcribed '{text}' ({latency_ms:.1f}ms).")
-                return text, conf, latency_ms
-            except Exception as e:
-                logger.error(f"Offline Faster-Whisper error: {e}")
+                    logger.debug(f"In-process Bhashini ASR fallback: {e}")
 
         # Fallback for synthetic/testing queries
         latency_ms = (time.time() - start_time) * 1000.0
