@@ -11,16 +11,17 @@ from app.core.logging import logger
 from app.models.manager import model_manager
 
 
-# Clinical domain-specific initial prompts to bias Whisper decoder toward medical vocabulary
+# Clinical conversational initial prompts to bias Whisper decoder toward patient symptom vocabulary
 MEDICAL_INITIAL_PROMPTS = {
-    "ta": "மருத்துவ உரையாடல்: நோயாளிக்கு காய்ச்சல், குளிர், சளி, கடுமையான இருமல், தலைவலி, நெஞ்சு வலி, மூச்சுத் திணறல், வாந்தி, வயிற்று வலி, உடல் சோர்வு, மயக்கம் போன்ற அறிகுறிகள் உள்ளன.",
-    "hi": "चिकित्सीय परामर्श: मरीज को तेज बुखार, ठंड लगना, खांसी, जुकाम, सिरदर्द, सीने में दर्द, सांस लेने में तकलीफ, उल्टी, पेट दर्द, बदन दर्द, कमजोरी के लक्षण हैं।",
-    "gu": "તબીબી પરામર્શ: દર્દીને તાવ, શરદી, ઉધરસ, માથાનો દુખાવો, છાતીમાં દુખાવો, શ્વાસ લેવામાં તકલીફ, ઉલટી, પેટમાં દુખાવો, નબળાઈ જેવા લક્ષણો છે.",
-    "en": "Clinical consultation: Patient presents with acute symptoms such as high fever, chills, persistent cough, cold, severe headache, chest pain, shortness of breath, nausea, abdominal pain, body ache.",
-    "ml": "ചികിത്സാ സംഭാഷണം: രോഗിക്ക് പനി, ചുമ, ജലദോഷം, തലവേദന, ശ്വാസംമുട്ടൽ, ഛർദ്ദി, വയറുവേദന, നെഞ്ചുവേദന എന്നീ ലಕ್ಷಣങ്ങൾ ഉണ്ട്.",
-    "te": "వైద్య సంప్రదింపులు: రోగికి జ్వరం, దగ్గు, జలుబు, తలనొప్పి, ఛాతీ నొప్పి, శ్వాస తీసుకోవడంలో ఇబ్బంది, వాంతులు, కడుపు నొప్పి వంటి లక్షణాలు ఉన్నాయి.",
-    "kn": "ವೈದ್ಯಕೀಯ ಸಮಾಲೋಚನೆ: ರೋಗಿಗೆ ಜ್ವರ, ಕೆಮ್ಮು, ನೆಗಡಿ, ತಲೆನೋವು, ಎದೆನೋವು, ಉಸಿರಾಟದ ತೊಂದರೆ, ವಾಂತಿ, ಹೊಟ್ಟೆನೋವು ಲಕ್ಷಣಗಳಿವೆ."
+    "ta": "வணக்கம் டாக்டர், எனக்கு காய்ச்சல், குளிர், சளி, இருமல், தலைவலி, நெஞ்சு வலி, மூச்சுத் திணறல், வாந்தி, வயிற்று வலி இருக்கு.",
+    "hi": "नमस्ते डॉक्टर, मुझे तेज बुखार, ठंड, खांसी, जुकाम, सिरदर्द, सीने में दर्द, सांस लेने में तकलीफ, उल्टी और पेट दर्द है।",
+    "gu": "નમસ્તે ડૉક્ટર, મને તાવ, શરદી, ઉધરસ, માથાનો દુખાવો, છાતીમાં દુખાવો, શ્વાસ લેવામાં તકલીફ, ઉલટી અને પેટમાં દુખાવો છે.",
+    "en": "Hello doctor, I have acute symptoms: high fever, chills, cough, cold, severe headache, chest pain, difficulty breathing, vomiting, stomach pain.",
+    "ml": "നമസ്കാരം ഡോക്ടർ, എനിക്ക് പനി, ചുമ, ജലദോഷം, തലവേദന, ശ്വാസംമുട്ടൽ, ഛർദ്ദി, വയറുവേദന, നെഞ്ചുവേദന ഉണ്ട്.",
+    "te": "నమస్కారం డాక్టర్, నాకు జ్వరం, దగ్గు, జలుబు, తలనొప్పి, ఛాతీ నొప్పి, శ్వాస తీసుకోవడంలో ఇబ్బంది, వాంతులు, కడుపు నొప్పి ఉన్నాయి.",
+    "kn": "ನಮಸ್ಕಾರ ಡಾಕ್ಟರ್, ನನಗೆ ಜ್ವರ, ಕೆಮ್ಮು, ನೆಗಡಿ, ತಲೆನೋವು, ಎದೆನೋವು, ಉಸಿರಾಟದ ತೊಂದರೆ, ವಾಂತಿ, ಹೊಟ್ಟೆನೋವು ಇದೆ."
 }
+
 
 
 def _resolve_local_whisper_path(model_size: str = "base") -> str:
@@ -136,14 +137,25 @@ class ASRService:
                     io.BytesIO(wav_bytes),
                     language=whisper_lang,
                     initial_prompt=initial_prompt,
-                    beam_size=1
+                    beam_size=2
                 )
                 text = " ".join([s.text for s in segments]).strip()
+                # Clean accidental prompt echoing
+                for prefix in [
+                    "வணக்கம் டாக்டர்,", "வணக்கம் டாக்டர்", "வணக்கம்,",
+                    "नमस्ते डॉक्टर,", "नमस्ते डॉक्टर",
+                    "નમસ્તે ડૉક્ટર,", "નમસ્તે ડૉક્ટર",
+                    "Hello doctor,", "Hello doctor"
+                ]:
+                    if text.startswith(prefix):
+                        text = text[len(prefix):].strip().lstrip(",. ")
+
                 if text:
                     conf = 0.90
                     latency_ms = (time.time() - start_time) * 1000.0
                     logger.info(f"Offline Faster-Whisper transcribed '{text}' [{whisper_lang}] ({latency_ms:.1f}ms).")
                     return text, conf, latency_ms
+
             except Exception as e:
                 logger.error(f"Offline Faster-Whisper error: {e}")
 
