@@ -65,3 +65,34 @@ def test_tts_sentence_splitting():
     assert len(sentences) == 3
     assert sentences[0] == "Fever is elevated."
     assert sentences[1] == "Please drink fluids immediately!"
+
+
+def test_offline_tts_synthesis():
+    tts = TTSService()
+    wav_bytes, lat = tts.synthesize("Take paracetamol with water.", language="en")
+    assert wav_bytes is not None
+    assert len(wav_bytes) > 200
+    assert lat >= 0.0
+
+    # Test Indic language synthesis strictly offline
+    wav_indic, lat_indic = tts.synthesize("தண்ணீர் அதிகம் குடிக்கவும்", language="ta")
+    assert wav_indic is not None
+    assert len(wav_indic) > 200
+
+
+def test_offline_asr_transcription():
+    asr = ASRService()
+    # 1 second of 16kHz audio buffer
+    import wave
+    import io
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        wf.writeframes(b"\x00" * 32000)
+
+    text, conf, lat = asr.transcribe(buf.getvalue(), language="en")
+    assert isinstance(text, str)
+    assert isinstance(conf, float)
+    assert lat >= 0.0

@@ -13,18 +13,18 @@ VOICES_DIR = os.path.join(BASE_DIR, "flite", "voices")
 
 class TTSInference:
 
-    def __init__(self):
+    def __init__(self, flite_bin=None, voices_dir=None):
+        import shutil
+        self.flite_bin = flite_bin or FLITE_BIN
+        if not os.path.exists(self.flite_bin):
+            sys_flite = shutil.which("flite") or ("/usr/bin/flite" if os.path.exists("/usr/bin/flite") else None)
+            if sys_flite:
+                self.flite_bin = sys_flite
 
-        # Validate paths once
-        if not os.path.exists(FLITE_BIN):
-            raise RuntimeError(
-                f"Flite binary not found: {FLITE_BIN}"
-            )
-
-        if not os.path.exists(VOICES_DIR):
-            raise RuntimeError(
-                f"Voices directory not found: {VOICES_DIR}"
-            )
+        self.voices_dir = voices_dir or VOICES_DIR
+        if not os.path.exists(self.voices_dir):
+            if os.path.exists("/usr/share/flite/voices"):
+                self.voices_dir = "/usr/share/flite/voices"
 
         # -------------------------------------------------
         # LANGUAGE → VOICE MAP
@@ -91,7 +91,7 @@ class TTSInference:
             )
 
         voice_path = os.path.join(
-            VOICES_DIR,
+            self.voices_dir,
             voice_name
         )
 
@@ -110,7 +110,7 @@ class TTSInference:
 
         # Flite command
         cmd = [
-            FLITE_BIN,
+            self.flite_bin,
             "-voice", voice_path,
             "--setf", f"duration_stretch={duration_stretch}",
             "--setf", f"int_f0_target_mean={f0_mean}",

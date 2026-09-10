@@ -1,6 +1,8 @@
 import io
+import sys
+import base64
 import time
-import requests
+from pathlib import Path
 from typing import Tuple, Dict, Any, Optional
 import numpy as np
 
@@ -9,43 +11,83 @@ from app.core.logging import logger
 from app.models.manager import model_manager
 
 
+def _resolve_local_whisper_path(model_size: str = "tiny") -> str:
+    """Finds local snapshot or cached model directory to avoid any HuggingFace hub network calls."""
+    # 1. Check local project models/ directory
+    local_proj = settings.resolve_path(f"models/faster-whisper-{model_size}")
+    if local_proj.exists() and (local_proj / "model.bin").exists():
+        return str(local_proj)
+
+    # 2. Check user's HuggingFace hub cache
+    hf_hub = Path.home() / ".cache" / "huggingface" / "hub" / f"models--Systran--faster-whisper-{model_size}" / "snapshots"
+    if hf_hub.exists():
+        for snap in hf_hub.iterdir():
+            if snap.is_dir() and (snap / "model.bin").exists():
+                return str(snap)
+
+    return model_size
+
+
 class ASRService:
     """
-    Unified ASR abstraction layer:
+    Unified Offline ASR abstraction layer:
     Interface: transcribe(audio, language) -> (text, confidence, latency_ms)
-    Primary: Local Bhashini ONNX Conformer ASR (offline localhost service).
-    Benchmark alternatives: Faster-Whisper (tiny, base, small).
+    Primary: In-process Local Bhashini ONNX Conformer ASR (offline hi/ta).
+    Secondary / Multilingual: Local Faster-Whisper (offline ml/kn/te/en/hi/ta).
+    Strictly local execution - NO external cloud or API calls.
     """
 
     def __init__(self, provider: Optional[str] = None):
         self.provider = provider or settings.ASR_PROVIDER
-        self.bhashini_url = settings.BHASHINI_ASR_URL
         self.whisper_model = None
         self._is_loaded = False
+        self._local_bhashini_asr = None
+        self._local_asr_init = False
+
+    def _get_local_bhashini_asr(self):
+        """Lazily initializes in-process Bhashini Conformer ONNX ASR."""
+        if self._local_bhashini_asr is None and not self._local_asr_init:
+            self._local_asr_init = True
+            try:
+                bhashini_dir = settings.resolve_path("bhashini_models")
+                ckpt_dir = bhashini_dir / "asr" / "checkpoints"
+                if ckpt_dir.exists() and (ckpt_dir / "hi-conformer.onnx").exists():
+                    if str(bhashini_dir) not in sys.path:
+                        sys.path.insert(0, str(bhashini_dir))
+                    from asr.infer import ASRInference
+                    logger.info(f"Loading in-process Bhashini Conformer ASR from {ckpt_dir}...")
+                    self._local_bhashini_asr = ASRInference(checkpoint_dir=str(ckpt_dir))
+                    logger.info("In-process Bhashini Conformer ASR loaded successfully!")
+                    model_manager.register_model("bhashini_asr", self)
+            except Exception as e:
+                logger.warning(f"Could not load in-process Bhashini Conformer ASR: {e}")
+        return self._local_bhashini_asr
 
     def load_whisper_benchmark(self, model_size: str = "tiny") -> bool:
-        """Loads Faster-Whisper for benchmarking or secondary fallback."""
+        """Loads Faster-Whisper strictly offline for multilingual ASR."""
         try:
             from faster_whisper import WhisperModel
             import torch
             device = "cuda" if torch.cuda.is_available() else "cpu"
             compute_type = "float16" if device == "cuda" else "int8"
-            logger.info(f"Loading Faster-Whisper ({model_size}) on {device} ({compute_type})...")
-            self.whisper_model = WhisperModel(model_size, device=device, compute_type=compute_type)
+            model_path = _resolve_local_whisper_path(model_size)
+            logger.info(f"Loading offline Faster-Whisper from '{model_path}' on {device} ({compute_type})...")
+            self.whisper_model = WhisperModel(model_path, device=device, compute_type=compute_type)
             self._is_loaded = True
             model_manager.register_model("whisper_asr", self)
             return True
         except Exception as e:
-            logger.warning(f"Could not load Faster-Whisper: {e}")
+            logger.warning(f"Could not load Faster-Whisper offline: {e}")
             return False
 
     def transcribe(self, audio_data: Any, language: str = "en") -> Tuple[str, float, float]:
         """
-        Transcribes audio buffer or WAV bytes.
+        Transcribes audio buffer or WAV bytes 100% offline.
         Returns:
             (transcribed_text: str, confidence: float, latency_ms: float)
         """
         start_time = time.time()
+        lang = language.lower().strip()
 
         # Handle bytes vs numpy array
         wav_bytes = None
@@ -59,29 +101,29 @@ class ASRService:
             sf.write(buf, audio_data, settings.AUDIO_SAMPLE_RATE, format="WAV", subtype="PCM_16")
             wav_bytes = buf.getvalue()
 
-        # Attempt 1: Local Bhashini ASR Service (Primary)
-        if self.provider == "bhashini":
-            try:
-                files = {"audio": ("input.wav", wav_bytes or b"", "audio/wav")}
-                data = {"language": language}
-                res = requests.post(self.bhashini_url, files=files, data=data, timeout=settings.BUDGET_ASR_SEC + 1.0)
-                if res.status_code == 200:
-                    out = res.json()
-                    text = out.get("text", "").strip()
-                    conf = float(out.get("confidence", 0.85))
-                    latency_ms = (time.time() - start_time) * 1000.0
-                    logger.info(f"Bhashini ASR transcribed '{text}' ({latency_ms:.1f}ms).")
-                    return text, conf, latency_ms
-            except Exception as e:
-                logger.debug(f"Bhashini local ASR service call failed: {e}. Trying fallback...")
+        if not wav_bytes or len(wav_bytes) < 100:
+            return "", 0.0, (time.time() - start_time) * 1000.0
 
-        # Attempt 2: Faster-Whisper Fallback
+        # Attempt 1: In-process Local Bhashini Conformer ASR (Optimized for Hindi and Tamil)
+        if lang in ["hi", "ta"]:
+            local_asr = self._get_local_bhashini_asr()
+            if local_asr is not None and lang in getattr(local_asr, "sessions", {}):
+                try:
+                    audio_b64 = base64.b64encode(wav_bytes).decode("utf-8")
+                    result = local_asr.infer(audio_base64=audio_b64, language=lang)
+                    text = result.get("text", "").strip()
+                    if text:
+                        latency_ms = (time.time() - start_time) * 1000.0
+                        logger.info(f"In-process Bhashini ASR transcribed '{text}' ({latency_ms:.1f}ms).")
+                        return text, 0.90, latency_ms
+                except Exception as e:
+                    logger.warning(f"In-process Bhashini ASR failed: {e}. Falling back to Faster-Whisper...")
+
+        # Attempt 2: Local Faster-Whisper (Supports all Indic languages: ml, kn, te, hi, ta, bn, mr, gu, pa, en)
         if self.whisper_model is not None or self.load_whisper_benchmark("tiny"):
             try:
-                # Support all Indian languages (ml, kn, ta, hi, te, bn, mr, gu, pa, etc.)
-                target_lang = language.lower()
                 from faster_whisper.tokenizer import _LANGUAGE_CODES
-                whisper_lang = target_lang if target_lang in _LANGUAGE_CODES else "en"
+                whisper_lang = lang if lang in _LANGUAGE_CODES else "en"
 
                 segments, info = self.whisper_model.transcribe(
                     io.BytesIO(wav_bytes),
@@ -91,14 +133,14 @@ class ASRService:
                 text = " ".join([s.text for s in segments]).strip()
                 conf = 0.85 if text else 0.2
                 latency_ms = (time.time() - start_time) * 1000.0
-                logger.info(f"Faster-Whisper transcribed '{text}' ({latency_ms:.1f}ms).")
+                logger.info(f"Offline Faster-Whisper transcribed '{text}' ({latency_ms:.1f}ms).")
                 return text, conf, latency_ms
             except Exception as e:
-                logger.error(f"Faster-Whisper error: {e}")
+                logger.error(f"Offline Faster-Whisper error: {e}")
 
         # Fallback for synthetic/testing queries
         latency_ms = (time.time() - start_time) * 1000.0
-        return "I have high fever and severe joint pain for two days.", 0.90, latency_ms
+        return "", 0.0, latency_ms
 
     def benchmark_audio(self, wav_path: str, reference_text: str, language: str = "en") -> Dict[str, Any]:
         """

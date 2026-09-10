@@ -1,5 +1,11 @@
+import os
+from pathlib import Path
 from typing import List, Optional
 import numpy as np
+
+# Enforce strict offline operation - prevent HuggingFace Hub network checks
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -11,10 +17,30 @@ from app.core.config import settings
 from app.core.logging import logger
 
 
+def _resolve_local_bge_path(model_name: str) -> str:
+    """Finds local snapshot or cached model directory to avoid any network calls."""
+    # 1. Check local project models/ directory
+    model_slug = model_name.split("/")[-1]
+    local_proj = settings.resolve_path(f"models/{model_slug}")
+    if local_proj.exists() and (local_proj / "modules.json").exists():
+        return str(local_proj)
+
+    # 2. Check user's HuggingFace hub cache
+    hf_slug = model_name.replace("/", "--")
+    hf_hub = Path.home() / ".cache" / "huggingface" / "hub" / f"models--{hf_slug}" / "snapshots"
+    if hf_hub.exists():
+        for snap in hf_hub.iterdir():
+            if snap.is_dir() and (snap / "modules.json").exists():
+                return str(snap)
+
+    return model_name
+
+
 class EmbeddingEngine:
     """
     Manages lightweight local English embedding models (BGE-small-en-v1.5 / all-MiniLM-L6-v2).
     Precomputes dense vector embeddings on CPU to preserve Jetson unified RAM.
+    Operates strictly offline without external network queries.
     """
 
     _instance = None
@@ -39,14 +65,16 @@ class EmbeddingEngine:
             logger.warning("sentence-transformers not installed. Using synthetic mock embedding engine.")
             return
 
+        model_path = _resolve_local_bge_path(self.model_name)
         try:
-            logger.info(f"Loading embedding model '{self.model_name}' on device '{self.device}'...")
-            self.model = SentenceTransformer(self.model_name, device=self.device)
-            logger.info(f"Embedding model '{self.model_name}' loaded successfully.")
+            logger.info(f"Loading offline embedding model from '{model_path}' on device '{self.device}'...")
+            self.model = SentenceTransformer(model_path, device=self.device)
+            logger.info(f"Embedding model '{self.model_name}' loaded successfully offline.")
         except Exception as e:
-            logger.warning(f"Failed to load '{self.model_name}': {e}. Trying fallback 'all-MiniLM-L6-v2'...")
+            logger.warning(f"Failed to load '{model_path}': {e}. Trying fallback 'all-MiniLM-L6-v2'...")
             try:
-                self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device=self.device)
+                fb_path = _resolve_local_bge_path("sentence-transformers/all-MiniLM-L6-v2")
+                self.model = SentenceTransformer(fb_path, device=self.device)
                 self.model_name = "all-MiniLM-L6-v2"
                 logger.info("Fallback embedding model loaded successfully.")
             except Exception as e2:

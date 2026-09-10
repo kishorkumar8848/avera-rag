@@ -14,6 +14,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Strict Offline Mode - Prevent external HuggingFace Hub network queries
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 # Default development settings for laptop testing if not already set
 os.environ.setdefault("FULLSCREEN", "false")
 os.environ.setdefault("UI_WIDTH", "1024")
