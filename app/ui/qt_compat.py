@@ -6,6 +6,11 @@ Includes QtPrintSupport for direct USB printer hardware and QTextDocument PDF ge
 
 from __future__ import annotations
 import sys
+import os
+
+# Clean cv2 plugin path if OpenCV poisoned QT_QPA_PLATFORM_PLUGIN_PATH
+if "QT_QPA_PLATFORM_PLUGIN_PATH" in os.environ and "cv2" in os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"]:
+    del os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"]
 
 HAS_QT = False
 QT_BINDING = None

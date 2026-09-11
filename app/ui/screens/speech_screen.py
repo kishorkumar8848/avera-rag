@@ -176,6 +176,14 @@ class SpeechScreen(QWidget if HAS_QT else object):
             lang_name = settings.SUPPORTED_LANGUAGES.get(lang_code, lang_code.upper())
             self.lang_badge.setText(f"Language: {lang_name}")
 
+    def set_patient(self, patient: PatientRecord):
+        """Updates active patient record from top navigation or search."""
+        self.active_patient = patient
+        if hasattr(self, "citizen_info_lbl"):
+            self._update_citizen_display()
+        if hasattr(self, "placeholder_label"):
+            self.placeholder_label.setText(self._get_placeholder_text())
+
     def _init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 16, 24, 16)

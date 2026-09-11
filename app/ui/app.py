@@ -178,7 +178,7 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         # Screen 2: Speech Assistant Screen
         self.screen_speech = SpeechScreen(retriever=self.retriever)
         self.screen_speech.on_patient_changed = self._on_screen_patient_changed
-        if self.active_patient:
+        if hasattr(self.screen_speech, "set_patient") and self.active_patient:
             self.screen_speech.set_patient(self.active_patient)
         self.stack.addWidget(self.screen_speech)
 

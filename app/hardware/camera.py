@@ -5,7 +5,14 @@ from PIL import Image
 import numpy as np
 
 try:
+    import os
+    # OpenCV wheels forcibly set QT_QPA_PLATFORM_PLUGIN_PATH to internal broken plugins on Linux.
+    _prev_qt_plugin_path = os.environ.get("QT_QPA_PLATFORM_PLUGIN_PATH")
     import cv2
+    if _prev_qt_plugin_path is not None:
+        os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = _prev_qt_plugin_path
+    elif "QT_QPA_PLATFORM_PLUGIN_PATH" in os.environ and "cv2" in os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"]:
+        del os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"]
     HAS_OPENCV = True
 except ImportError:
     HAS_OPENCV = False
