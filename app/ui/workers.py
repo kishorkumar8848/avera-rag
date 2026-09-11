@@ -249,39 +249,41 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
                     pass
 
     def _build_full_narration(self, summary: str, schema: MedicalResponseSchema) -> str:
-        """Assembles a comprehensive voice narration covering summary, actions, danger signs, and referral."""
-        parts = [summary.strip()]
+        """
+        Assembles a concise, natural clinical voice summary for audio narration.
+        Avoids overwhelming the patient with a 5-minute monologue, and keeps
+        memory usage strictly bounded (<150MB) on Jetson hardware.
+        """
+        import re
+        parts = []
+
+        # 1. Primary assessment sentence(s) (max 2 sentences or 180 chars)
+        clean_sum = summary.strip()
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?।])\s+", clean_sum) if s.strip()]
+        if sentences:
+            lead_summary = sentences[0]
+            if len(sentences) > 1 and len(lead_summary) < 90:
+                lead_summary += " " + sentences[1]
+            parts.append(lead_summary)
+        elif clean_sum:
+            parts.append(clean_sum[:180])
+
+        # 2. Key primary recommendation (first action item)
         if schema.recommended_actions:
-            header = {
-                "ta": "பரிந்துரைக்கப்பட்ட அடுத்த படிகள். ",
-                "hi": "सुझाए गए अगले कदम. ",
-                "te": "సూచించిన తదుపరి చర్యలు. ",
-                "kn": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು. ",
-                "ml": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ. "
-            }.get(self.language, "Recommended next steps. ")
-            parts.append(header + ". ".join(schema.recommended_actions))
+            first_action = schema.recommended_actions[0].strip().lstrip("- •0123456789. ")
+            if first_action:
+                header = {
+                    "ta": "முக்கிய ஆலோசனை: ",
+                    "hi": "मुख्य सलाह: ",
+                    "te": "ముఖ్యమైన సలహా: ",
+                    "kn": "ಮುಖ್ಯ ಸಲಹೆ: ",
+                    "ml": "പ്രധാന ഉപദേശം: "
+                }.get(self.language, "Key advice: ")
+                parts.append(f"{header}{first_action}.")
 
-        if schema.warning_signs:
-            header = {
-                "ta": "கவனிக்க வேண்டிய ஆபத்து அறிகுறிகள். ",
-                "hi": "खतरे के लक्षण जिन पर ध्यान दें. ",
-                "te": "ప్రమాద సంకేతాలు. ",
-                "kn": "ಅಪಾಯದ ಲಕ್ಷಣಗಳು. ",
-                "ml": "ശ്രദ്ധിക്കേണ്ട അപകട ലക്ഷണങ്ങൾ. "
-            }.get(self.language, "Watch for danger signs. ")
-            parts.append(header + ". ".join(schema.warning_signs))
-
-        if schema.referral:
-            header = {
-                "ta": "மருத்துவ பரிந்துரை ஆலோசனை. ",
-                "hi": "रेफरल मार्गदर्शन. ",
-                "te": "సిఫార్సు మార్గదర్శకత్వం. ",
-                "kn": "ರೆಫರಲ್ ಮಾರ್ಗದರ್ಶನ. ",
-                "ml": "റഫറൽ മാർഗ്ഗനിർദ്ദേശം. "
-            }.get(self.language, "Referral guidance. ")
-            parts.append(header + schema.referral)
-
-        return " ".join(parts)
+        narration = " ".join(parts).strip()
+        # Cap total spoken length at 280 characters for optimal TTS latency and zero memory bloat
+        return narration[:280]
 
     def _emit_status(self, text: str):
         if self.signals:

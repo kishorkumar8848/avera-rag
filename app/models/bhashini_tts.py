@@ -178,6 +178,7 @@ class TTSService:
         clean_text = self.clean_spoken_text(text, language=lang)
         if not clean_text:
             return None, 0.0
+        clean_text = clean_text[:280].strip()
 
         # Attempt 1: Meta MMS-TTS (Neural VITS Architecture - Studio Quality Human Speech)
         try:

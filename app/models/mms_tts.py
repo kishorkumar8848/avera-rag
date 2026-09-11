@@ -109,13 +109,15 @@ class MMSTTSService:
 
         lang = language.lower().strip()
         start_time = time.time()
+        # Strictly bound text length to prevent tensor memory explosion on edge hardware
+        bounded_text = text[:280].strip()
 
         with self._lock:
             if not self._load_language_model(lang):
                 return None, 0.0
 
             try:
-                inputs = self.active_tokenizer(text, return_tensors="pt")
+                inputs = self.active_tokenizer(bounded_text, return_tensors="pt")
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
                 with torch.no_grad():
@@ -123,6 +125,12 @@ class MMSTTSService:
 
                 audio_data = output.cpu().float().numpy().squeeze()
                 sample_rate = self.active_model.config.sampling_rate
+
+                # Clean up PyTorch tensors immediately to release RAM
+                del output
+                del inputs
+                import gc
+                gc.collect()
 
                 # Convert float32 [-1, 1] to int16 PCM
                 import numpy as np
