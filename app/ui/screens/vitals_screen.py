@@ -1,12 +1,13 @@
 """
 Screen 3: Biometric Vital Signs Acquisition Screen for AVERA Kiosk.
-Displays live telemetry and medical waveforms from 4 integrated Jetson sensors:
-  - MLX90614 Non-Contact IR Thermometer (Body Temp °F / °C)
-  - MAX30100 Pulse Oximeter (SpO2 % & Heart Rate BPM)
-  - AD8232 Single-Lead ECG (via ADS1115 A0 + GPIO Leads-Off detection)
+Interactive 'One-by-One' on-demand vital sign acquisition interface:
+  - Step 1: Body Temperature (MLX90614 Non-Contact IR)
+  - Step 2: Pulse Oximetry (MAX30100 SpO2 & Heart Rate)
+  - Step 3: Cardiac Rhythm & Single-Lead ECG (AD8232 via ADS1115)
+Includes visual 3-node electrode placement diagram (RA, LA, RL) and real-time oscilloscope.
 """
 
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 
 from app.ui.qt_compat import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
@@ -26,13 +27,18 @@ class ECGWaveformWidget(QWidget if HAS_QT else object):
     def __init__(self, parent=None):
         if HAS_QT:
             super().__init__(parent)
-        self.points = [0.5] * 80
-        self.leads_ok = True
-        self.setMinimumHeight(140)
+        self.points: List[float] = [0.5] * 80
+        self.leads_ok: bool = True
+        self.is_active: bool = False
+        self.status_msg: str = "Ready for ECG capture"
+        self.setMinimumHeight(150)
 
-    def set_data(self, points: list, leads_ok: bool = True):
+    def set_data(self, points: list, leads_ok: bool = True, is_active: bool = False, msg: str = ""):
         self.points = points
         self.leads_ok = leads_ok
+        self.is_active = is_active
+        if msg:
+            self.status_msg = msg
         if HAS_QT:
             self.update()
 
@@ -57,16 +63,16 @@ class ECGWaveformWidget(QWidget if HAS_QT else object):
             for y in range(0, h, step_y):
                 painter.drawLine(0, y, w, y)
 
-            # 3. Waveform Trace
+            # 3. Waveform Trace or Status
             if not self.leads_ok:
-                # Flatline / Lead Off Warning
+                # Leads Off / Detached Warning
                 warn_pen = QPen(QColor(239, 68, 68), 2, Qt.DashLine)
                 painter.setPen(warn_pen)
                 mid_y = int(h * 0.5)
                 painter.drawLine(0, mid_y, w, mid_y)
 
                 painter.setPen(QColor(248, 113, 113))
-                painter.drawText(20, 24, "⚠️ ELECTRODES DETACHED / LEADS OFF")
+                painter.drawText(20, 26, "⚠️ ELECTRODES DETACHED — CHECK RED, YELLOW & GREEN PADS")
             else:
                 trace_pen = QPen(QColor(16, 185, 129), 2.5)  # Bright Medical Emerald
                 painter.setPen(trace_pen)
@@ -81,13 +87,21 @@ class ECGWaveformWidget(QWidget if HAS_QT else object):
                         y2 = int(h - (self.points[i + 1] * h))
                         painter.drawLine(x1, y1, x2, y2)
 
+                # Overlay status label
+                if self.is_active:
+                    painter.setPen(QColor(56, 189, 248))  # Medical Cyan
+                    painter.drawText(20, 26, "● LIVE ECG RECORDING (AD8232 — 50 Hz)")
+                elif self.status_msg:
+                    painter.setPen(QColor(148, 163, 184))
+                    painter.drawText(20, 26, self.status_msg)
+
             painter.end()
 
 
 class VitalsScreen(QWidget if HAS_QT else object):
     """
-    Dedicated touchscreen interface for acquiring patient vitals
-    before proceeding to clinical symptoms analysis.
+    Interactive touchscreen interface for acquiring patient vitals 'one-by-one':
+    Body Temperature -> SpO2 & Pulse -> 3-Lead ECG.
     """
 
     def __init__(self, on_vitals_confirmed: Callable[[VitalsRecord], None], parent=None):
@@ -95,9 +109,17 @@ class VitalsScreen(QWidget if HAS_QT else object):
             super().__init__(parent)
         self.on_vitals_confirmed = on_vitals_confirmed
         self.active_patient: Optional[PatientRecord] = None
-        self.recorded_vitals: Optional[VitalsRecord] = None
-        self.is_capturing = False
-        self.capture_seconds_left = 5
+        self.current_vitals: VitalsRecord = sensor_manager.get_vitals()
+
+        # Acquisition timer counters
+        self._temp_ticks = 0
+        self._temp_max_ticks = 30  # 3.0s (100ms per tick)
+
+        self._spo2_ticks = 0
+        self._spo2_max_ticks = 40  # 4.0s (100ms per tick)
+
+        self._ecg_ticks = 0
+        self._ecg_max_ticks = 140  # ~5.0s (35ms per tick)
 
         if HAS_QT:
             self._init_ui()
@@ -106,13 +128,13 @@ class VitalsScreen(QWidget if HAS_QT else object):
     def set_patient(self, patient: PatientRecord):
         self.active_patient = patient
         if hasattr(self, "patient_banner"):
-            b = f"👤 <b>{patient.name}</b> ({patient.age_display_badge}, {patient.gender}) • ABHA: {patient.abha_id} • {patient.village}"
+            b = f"👤 <b>Citizen</b>: {patient.name} ({patient.age_display_badge}, {patient.gender}) • ABHA: {patient.abha_id} • Village: {patient.village}"
             self.patient_banner.setText(b)
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 20, 40, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(36, 16, 36, 20)
+        layout.setSpacing(14)
 
         # 1. Patient Profile Info Strip
         self.patient_banner = QLabel("👤 <b>Citizen</b>: Select Resident • ABHA: --")
@@ -122,156 +144,256 @@ class VitalsScreen(QWidget if HAS_QT else object):
         )
         layout.addWidget(self.patient_banner)
 
-        # Header Title
+        # 2. Header & Step Instructions
         h_box = QWidget()
         h_layout = QVBoxLayout(h_box)
         h_layout.setContentsMargins(0, 0, 0, 0)
-        h_layout.setSpacing(4)
+        h_layout.setSpacing(3)
+
         title = QLabel("Biometric Vital Signs Acquisition")
-        title.setStyleSheet("font-size: 26px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px;")
+        title.setStyleSheet("font-size: 24px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px;")
         h_layout.addWidget(title)
-        subtitle = QLabel("Live telemetry from non-contact thermometer, pulse oximeter, and single-lead ECG")
-        subtitle.setStyleSheet("font-size: 15px; color: #64748B; font-weight: 500;")
+
+        subtitle = QLabel("Click 'Take Reading' to measure each vital sign one by one. Follow the ECG node guide for electrode placement.")
+        subtitle.setStyleSheet("font-size: 14px; color: #64748B; font-weight: 500;")
         h_layout.addWidget(subtitle)
         layout.addWidget(h_box)
 
-        # 2. Vitals Cards Grid (2x2)
-        grid = QGridLayout()
-        grid.setSpacing(16)
+        # 3. Main Split Content (Left: Temp & SpO2 Cards, Right: ECG & Electrode Guide)
+        content_row = QHBoxLayout()
+        content_row.setSpacing(16)
 
-        # Card 1: Temperature (MLX90614)
+        # Left Column (Temp + SpO2)
+        left_col = QVBoxLayout()
+        left_col.setSpacing(14)
+
+        # ---------------------------------------------------------------------
+        # Card 1: Body Temperature (MLX90614 Non-Contact IR)
+        # ---------------------------------------------------------------------
         self.temp_card = QFrame()
         self.temp_card.setObjectName("CardFrame")
         t_layout = QVBoxLayout(self.temp_card)
         t_layout.setContentsMargins(20, 16, 20, 16)
         t_layout.setSpacing(8)
 
-        t_hdr = QLabel("🌡️ Body Temperature (MLX90614)")
-        t_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #475569;")
-        t_layout.addWidget(t_hdr)
+        t_hdr_row = QHBoxLayout()
+        t_hdr = QLabel("🌡️ <b>Step 1: Body Temperature</b>")
+        t_hdr.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
+        t_hdr_row.addWidget(t_hdr)
+        t_hdr_row.addStretch()
 
-        self.temp_val_lbl = QLabel("98.6 °F")
-        self.temp_val_lbl.setStyleSheet("font-size: 34px; font-weight: 900; color: #0284C7;")
-        t_layout.addWidget(self.temp_val_lbl)
+        self.temp_lock_badge = QLabel("○ Not Measured")
+        self.temp_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        t_hdr_row.addWidget(self.temp_lock_badge)
+        t_layout.addLayout(t_hdr_row)
 
-        self.temp_badge = QLabel("Normal (37.0 °C)")
-        self.temp_badge.setStyleSheet(
-            "background: #ECFDF5; color: #065F46; font-size: 13px; font-weight: 700; "
-            "padding: 4px 10px; border-radius: 6px;"
-        )
-        t_layout.addWidget(self.temp_badge)
+        t_inst = QLabel("👉 Hold infrared sensor 2-4 cm from center of patient's forehead.")
+        t_inst.setStyleSheet("font-size: 13px; color: #475569; font-weight: 500;")
+        t_layout.addWidget(t_inst)
 
-        self.temp_hw_status = QLabel("● Sensor Ready (0x5A)")
-        self.temp_hw_status.setStyleSheet("font-size: 12px; color: #64748B;")
-        t_layout.addWidget(self.temp_hw_status)
-        grid.addWidget(self.temp_card, 0, 0)
+        t_val_row = QHBoxLayout()
+        self.temp_val_lbl = QLabel("--.- °F")
+        self.temp_val_lbl.setStyleSheet("font-size: 32px; font-weight: 900; color: #0284C7;")
+        t_val_row.addWidget(self.temp_val_lbl)
 
-        # Card 2: SpO2 Oxygen Saturation (MAX30100)
+        self.temp_status_lbl = QLabel("Awaiting measurement")
+        self.temp_status_lbl.setStyleSheet("font-size: 13px; font-weight: 600; color: #64748B; background: #F8FAFC; padding: 6px 12px; border-radius: 6px;")
+        t_val_row.addWidget(self.temp_status_lbl)
+        t_val_row.addStretch()
+        t_layout.addLayout(t_val_row)
+
+        self.temp_prog = QProgressBar()
+        self.temp_prog.setRange(0, 100)
+        self.temp_prog.setValue(0)
+        self.temp_prog.setTextVisible(False)
+        self.temp_prog.setFixedHeight(6)
+        self.temp_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 3px; } QProgressBar::chunk { background: #0284C7; border-radius: 3px; }")
+        self.temp_prog.setVisible(False)
+        t_layout.addWidget(self.temp_prog)
+
+        self.temp_action_btn = QPushButton("▶️ Take Temperature Reading (3s)")
+        self.temp_action_btn.setObjectName("NavBtn")
+        self.temp_action_btn.setMinimumHeight(44)
+        self.temp_action_btn.setCursor(Qt.PointingHandCursor)
+        self.temp_action_btn.clicked.connect(self._start_temp_reading)
+        t_layout.addWidget(self.temp_action_btn)
+
+        left_col.addWidget(self.temp_card)
+
+        # ---------------------------------------------------------------------
+        # Card 2: Blood Oxygen & Pulse (MAX30100)
+        # ---------------------------------------------------------------------
         self.spo2_card = QFrame()
         self.spo2_card.setObjectName("CardFrame")
         s_layout = QVBoxLayout(self.spo2_card)
         s_layout.setContentsMargins(20, 16, 20, 16)
         s_layout.setSpacing(8)
 
-        s_hdr = QLabel("💨 Oxygen Saturation SpO2 (MAX30100)")
-        s_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #475569;")
-        s_layout.addWidget(s_hdr)
+        s_hdr_row = QHBoxLayout()
+        s_hdr = QLabel("💨 <b>Step 2: Blood Oxygen & Pulse</b>")
+        s_hdr.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
+        s_hdr_row.addWidget(s_hdr)
+        s_hdr_row.addStretch()
 
-        self.spo2_val_lbl = QLabel("98 %")
-        self.spo2_val_lbl.setStyleSheet("font-size: 34px; font-weight: 900; color: #059669;")
-        s_layout.addWidget(self.spo2_val_lbl)
+        self.spo2_lock_badge = QLabel("○ Not Measured")
+        self.spo2_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        s_hdr_row.addWidget(self.spo2_lock_badge)
+        s_layout.addLayout(s_hdr_row)
 
-        self.spo2_badge = QLabel("Adequate Saturation (≥95%)")
-        self.spo2_badge.setStyleSheet(
-            "background: #ECFDF5; color: #065F46; font-size: 13px; font-weight: 700; "
-            "padding: 4px 10px; border-radius: 6px;"
-        )
-        s_layout.addWidget(self.spo2_badge)
+        s_inst = QLabel("👉 Place patient's index finger gently on the red optical sensor.")
+        s_inst.setStyleSheet("font-size: 13px; color: #475569; font-weight: 500;")
+        s_layout.addWidget(s_inst)
 
-        self.spo2_hw_status = QLabel("● Sensor Ready (0x57)")
-        self.spo2_hw_status.setStyleSheet("font-size: 12px; color: #64748B;")
-        s_layout.addWidget(self.spo2_hw_status)
-        grid.addWidget(self.spo2_card, 0, 1)
+        s_val_row = QHBoxLayout()
+        s_val_row.setSpacing(14)
 
-        # Card 3: Heart Rate / Pulse
-        self.hr_card = QFrame()
-        self.hr_card.setObjectName("CardFrame")
-        hr_layout = QVBoxLayout(self.hr_card)
-        hr_layout.setContentsMargins(20, 16, 20, 16)
-        hr_layout.setSpacing(8)
+        v_box1 = QVBoxLayout()
+        self.spo2_val_lbl = QLabel("-- %")
+        self.spo2_val_lbl.setStyleSheet("font-size: 32px; font-weight: 900; color: #059669;")
+        self.spo2_status_lbl = QLabel("SpO2 Saturation")
+        self.spo2_status_lbl.setStyleSheet("font-size: 12px; color: #64748B; font-weight: 600;")
+        v_box1.addWidget(self.spo2_val_lbl)
+        v_box1.addWidget(self.spo2_status_lbl)
+        s_val_row.addLayout(v_box1)
 
-        hr_hdr = QLabel("🫀 Heart Rate / Pulse")
-        hr_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #475569;")
-        hr_layout.addWidget(hr_hdr)
+        v_box2 = QVBoxLayout()
+        self.hr_val_lbl = QLabel("-- BPM")
+        self.hr_val_lbl.setStyleSheet("font-size: 32px; font-weight: 900; color: #DC2626;")
+        self.hr_status_lbl = QLabel("Heart Rate / Pulse")
+        self.hr_status_lbl.setStyleSheet("font-size: 12px; color: #64748B; font-weight: 600;")
+        v_box2.addWidget(self.hr_val_lbl)
+        v_box2.addWidget(self.hr_status_lbl)
+        s_val_row.addLayout(v_box2)
 
-        self.hr_val_lbl = QLabel("74 BPM")
-        self.hr_val_lbl.setStyleSheet("font-size: 34px; font-weight: 900; color: #DC2626;")
-        hr_layout.addWidget(self.hr_val_lbl)
+        s_val_row.addStretch()
+        s_layout.addLayout(s_val_row)
 
-        self.hr_badge = QLabel("Normal Sinus (60-100 BPM)")
-        self.hr_badge.setStyleSheet(
-            "background: #ECFDF5; color: #065F46; font-size: 13px; font-weight: 700; "
-            "padding: 4px 10px; border-radius: 6px;"
-        )
-        hr_layout.addWidget(self.hr_badge)
+        self.spo2_prog = QProgressBar()
+        self.spo2_prog.setRange(0, 100)
+        self.spo2_prog.setValue(0)
+        self.spo2_prog.setTextVisible(False)
+        self.spo2_prog.setFixedHeight(6)
+        self.spo2_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 3px; } QProgressBar::chunk { background: #059669; border-radius: 3px; }")
+        self.spo2_prog.setVisible(False)
+        s_layout.addWidget(self.spo2_prog)
 
-        self.hr_hw_status = QLabel("● R-wave Sync Active")
-        self.hr_hw_status.setStyleSheet("font-size: 12px; color: #64748B;")
-        hr_layout.addWidget(self.hr_hw_status)
-        grid.addWidget(self.hr_card, 1, 0)
+        self.spo2_action_btn = QPushButton("▶️ Take SpO2 & Pulse Reading (4s)")
+        self.spo2_action_btn.setObjectName("NavBtn")
+        self.spo2_action_btn.setMinimumHeight(44)
+        self.spo2_action_btn.setCursor(Qt.PointingHandCursor)
+        self.spo2_action_btn.clicked.connect(self._start_spo2_reading)
+        s_layout.addWidget(self.spo2_action_btn)
 
-        # Card 4: ECG Monitor (AD8232 via ADS1115)
+        left_col.addWidget(self.spo2_card)
+
+        content_row.addLayout(left_col, stretch=4)
+
+        # ---------------------------------------------------------------------
+        # Right Column (ECG Rhythm & Node Placement Guide)
+        # ---------------------------------------------------------------------
+        right_col = QVBoxLayout()
+        right_col.setSpacing(14)
+
         self.ecg_card = QFrame()
         self.ecg_card.setObjectName("CardFrame")
         e_layout = QVBoxLayout(self.ecg_card)
-        e_layout.setContentsMargins(18, 14, 18, 14)
-        e_layout.setSpacing(6)
+        e_layout.setContentsMargins(20, 16, 20, 16)
+        e_layout.setSpacing(10)
 
+        # Header Row
         e_hdr_row = QHBoxLayout()
-        e_hdr = QLabel("📈 Single-Lead ECG Monitor (AD8232 via ADS1115)")
-        e_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #475569;")
+        e_hdr = QLabel("📈 <b>Step 3: Cardiac Rhythm & ECG Monitor (AD8232)</b>")
+        e_hdr.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
         e_hdr_row.addWidget(e_hdr)
         e_hdr_row.addStretch()
 
-        self.lead_status_badge = QLabel("● Leads Connected (LO-/LO+ OK)")
-        self.lead_status_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #059669;")
-        e_hdr_row.addWidget(self.lead_status_badge)
+        self.ecg_lock_badge = QLabel("○ Not Measured")
+        self.ecg_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        e_hdr_row.addWidget(self.ecg_lock_badge)
         e_layout.addLayout(e_hdr_row)
 
+        # ---------------------------------------------------------------------
+        # VISUAL ELECTRODE PLACEMENT GUIDE (3-LEAD EINTHOVEN TRIANGLE)
+        # ---------------------------------------------------------------------
+        guide_box = QFrame()
+        guide_box.setStyleSheet("background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px;")
+        g_layout = QVBoxLayout(guide_box)
+        g_layout.setContentsMargins(10, 8, 10, 8)
+        g_layout.setSpacing(6)
+
+        g_title_row = QHBoxLayout()
+        g_title = QLabel("📍 <b>3-Node Electrode Placement Guide:</b>")
+        g_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #1E293B;")
+        g_title_row.addWidget(g_title)
+        g_title_row.addStretch()
+
+        self.lead_status_lbl = QLabel("● Leads Connected (LO+/LO- OK)")
+        self.lead_status_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #059669;")
+        g_title_row.addWidget(self.lead_status_lbl)
+        g_layout.addLayout(g_title_row)
+
+        nodes_row = QHBoxLayout()
+        nodes_row.setSpacing(8)
+
+        # Node 1: RA (Red)
+        ra_box = QLabel("🔴 <b>RA (Red Lead)</b><br/>Right Upper Chest<br/><i>(Below Collarbone)</i>")
+        ra_box.setStyleSheet("background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; padding: 6px 10px; border-radius: 6px; font-size: 12px;")
+        nodes_row.addWidget(ra_box)
+
+        # Node 2: LA (Yellow)
+        la_box = QLabel("🟡 <b>LA (Yellow Lead)</b><br/>Left Upper Chest<br/><i>(Below Collarbone)</i>")
+        la_box.setStyleSheet("background: #FEFCE8; color: #854D0E; border: 1px solid #FEF08A; padding: 6px 10px; border-radius: 6px; font-size: 12px;")
+        nodes_row.addWidget(la_box)
+
+        # Node 3: RL (Green)
+        rl_box = QLabel("🟢 <b>RL (Green Lead)</b><br/>Right Lower Flank<br/><i>(Reference Ground)</i>")
+        rl_box.setStyleSheet("background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; padding: 6px 10px; border-radius: 6px; font-size: 12px;")
+        nodes_row.addWidget(rl_box)
+
+        g_layout.addLayout(nodes_row)
+        e_layout.addWidget(guide_box)
+
+        # ECG Oscilloscope Screen
         self.ecg_canvas = ECGWaveformWidget()
         e_layout.addWidget(self.ecg_canvas)
 
-        grid.addWidget(self.ecg_card, 1, 1)
+        # Progress bar
+        self.ecg_prog = QProgressBar()
+        self.ecg_prog.setRange(0, 100)
+        self.ecg_prog.setValue(0)
+        self.ecg_prog.setTextVisible(False)
+        self.ecg_prog.setFixedHeight(6)
+        self.ecg_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 3px; } QProgressBar::chunk { background: #10B981; border-radius: 3px; }")
+        self.ecg_prog.setVisible(False)
+        e_layout.addWidget(self.ecg_prog)
 
-        layout.addLayout(grid, stretch=1)
+        # ECG Action Button
+        self.ecg_action_btn = QPushButton("▶️ Record ECG Rhythm (5s)")
+        self.ecg_action_btn.setObjectName("NavBtn")
+        self.ecg_action_btn.setMinimumHeight(44)
+        self.ecg_action_btn.setCursor(Qt.PointingHandCursor)
+        self.ecg_action_btn.clicked.connect(self._start_ecg_reading)
+        e_layout.addWidget(self.ecg_action_btn)
 
-        # 3. Capture Progress Bar (for 5s stabilized recording)
-        self.capture_prog = QProgressBar()
-        self.capture_prog.setRange(0, 5)
-        self.capture_prog.setValue(0)
-        self.capture_prog.setTextVisible(False)
-        self.capture_prog.setFixedHeight(8)
-        self.capture_prog.setStyleSheet(
-            "QProgressBar { background: #E2E8F0; border-radius: 4px; } "
-            "QProgressBar::chunk { background: #2563EB; border-radius: 4px; }"
-        )
-        self.capture_prog.setVisible(False)
-        layout.addWidget(self.capture_prog)
+        right_col.addWidget(self.ecg_card)
+        content_row.addLayout(right_col, stretch=5)
 
-        # 4. Action Buttons Row
+        layout.addLayout(content_row, stretch=1)
+
+        # 4. Bottom Action Bar
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(16)
+        btn_row.setSpacing(14)
 
-        self.record_btn = QPushButton("▶️ Record Vitals (5s Auto-Lock)")
-        self.record_btn.setObjectName("NavBtn")
-        self.record_btn.setMinimumHeight(52)
-        self.record_btn.setCursor(Qt.PointingHandCursor)
-        self.record_btn.clicked.connect(self._start_capture)
-        btn_row.addWidget(self.record_btn)
+        self.reset_btn = QPushButton("🔄 Reset Readings")
+        self.reset_btn.setObjectName("NavBtn")
+        self.reset_btn.setMinimumHeight(48)
+        self.reset_btn.setCursor(Qt.PointingHandCursor)
+        self.reset_btn.clicked.connect(self._reset_all)
+        btn_row.addWidget(self.reset_btn)
 
-        self.skip_btn = QPushButton("⏩ Skip Vitals")
+        self.skip_btn = QPushButton("⏩ Skip Vitals & Proceed")
         self.skip_btn.setObjectName("NavBtn")
-        self.skip_btn.setMinimumHeight(52)
+        self.skip_btn.setMinimumHeight(48)
         self.skip_btn.setCursor(Qt.PointingHandCursor)
         self.skip_btn.clicked.connect(self._skip_vitals)
         btn_row.addWidget(self.skip_btn)
@@ -280,7 +402,7 @@ class VitalsScreen(QWidget if HAS_QT else object):
 
         self.confirm_btn = QPushButton("✅ Confirm Vitals & Proceed to Assessment  ➔")
         self.confirm_btn.setObjectName("PrimaryBtn")
-        self.confirm_btn.setMinimumHeight(52)
+        self.confirm_btn.setMinimumHeight(48)
         self.confirm_btn.setCursor(Qt.PointingHandCursor)
         self.confirm_btn.clicked.connect(self._confirm_and_proceed)
         btn_row.addWidget(self.confirm_btn)
@@ -288,83 +410,200 @@ class VitalsScreen(QWidget if HAS_QT else object):
         layout.addLayout(btn_row)
 
     def _init_timers(self):
-        # 30 Hz Refresh Timer for Live ECG Oscilloscope and Vitals
-        self.live_timer = QTimer(self)
-        self.live_timer.timeout.connect(self._update_live_vitals)
-        self.live_timer.start(35)
+        # 1. Temperature acquisition timer
+        self.temp_timer = QTimer(self)
+        self.temp_timer.timeout.connect(self._on_temp_tick)
 
-        # 1-second countdown timer for 5s stabilized vital capture
-        self.capture_timer = QTimer(self)
-        self.capture_timer.timeout.connect(self._on_capture_tick)
+        # 2. SpO2 acquisition timer
+        self.spo2_timer = QTimer(self)
+        self.spo2_timer.timeout.connect(self._on_spo2_tick)
 
-    def _update_live_vitals(self):
+        # 3. ECG recording timer
+        self.ecg_timer = QTimer(self)
+        self.ecg_timer.timeout.connect(self._on_ecg_tick)
+
+        # 4. Background sensor check timer (Checks leads-off status every 300ms)
+        self.leads_timer = QTimer(self)
+        self.leads_timer.timeout.connect(self._check_leads_status)
+        self.leads_timer.start(300)
+
+    def _check_leads_status(self):
+        """Monitors real-time electrode attachment status."""
         v = sensor_manager.get_vitals()
-        self.recorded_vitals = v
-
-        # 1. Update Temperature
-        self.temp_val_lbl.setText(f"{v.temperature_f:.1f} °F")
-        self.temp_badge.setText(f"{v.temperature_status} ({v.temperature_c:.1f} °C)")
-        if v.temperature_f >= 100.4:
-            self.temp_badge.setStyleSheet("background: #FEE2E2; color: #991B1B; font-weight: bold; padding: 4px 10px; border-radius: 6px;")
-        else:
-            self.temp_badge.setStyleSheet("background: #ECFDF5; color: #065F46; font-weight: bold; padding: 4px 10px; border-radius: 6px;")
-
-        # 2. Update SpO2
-        self.spo2_val_lbl.setText(f"{v.spo2_percent} %")
-        self.spo2_badge.setText(v.spo2_status)
-        if v.spo2_percent < 94:
-            self.spo2_badge.setStyleSheet("background: #FEE2E2; color: #991B1B; font-weight: bold; padding: 4px 10px; border-radius: 6px;")
-        else:
-            self.spo2_badge.setStyleSheet("background: #ECFDF5; color: #065F46; font-weight: bold; padding: 4px 10px; border-radius: 6px;")
-
-        # 3. Update Heart Rate
-        self.hr_val_lbl.setText(f"{v.heart_rate_bpm} BPM")
-        self.hr_badge.setText(v.pulse_status)
-
-        # 4. Update ECG Oscilloscope Canvas
-        self.ecg_canvas.set_data(v.ecg_waveform, v.ecg_leads_ok)
         if v.ecg_leads_ok:
-            self.lead_status_badge.setText("● Leads Connected (LO-/LO+ OK)")
-            self.lead_status_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #059669;")
+            self.lead_status_lbl.setText("● Electrodes Connected (Ready)")
+            self.lead_status_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #059669;")
         else:
-            self.lead_status_badge.setText("⚠️ Leads Detached (Electrodes Off)")
-            self.lead_status_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #DC2626;")
+            self.lead_status_lbl.setText("⚠️ Electrodes Detached (Check Pad Contact)")
+            self.lead_status_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #DC2626;")
 
-        # Sensor connection hardware labels
-        hw = v.hardware_connected
-        self.temp_hw_status.setText("● Hardware Connected (0x5A)" if hw.get("MLX90614") else "○ Standby / Live Baseline")
-        self.spo2_hw_status.setText("● Hardware Connected (0x57)" if hw.get("MAX30100") else "○ Standby / Live Baseline")
+    # -------------------------------------------------------------------------
+    # STEP 1: TEMPERATURE ON-DEMAND MEASUREMENT
+    # -------------------------------------------------------------------------
 
-    def _start_capture(self):
-        self.is_capturing = True
-        self.capture_seconds_left = 5
-        self.capture_prog.setValue(0)
-        self.capture_prog.setVisible(True)
-        self.record_btn.setText(f"⏳ Locking Readings ({self.capture_seconds_left}s)...")
-        self.record_btn.setEnabled(False)
-        self.capture_timer.start(1000)
+    def _start_temp_reading(self):
+        self._temp_ticks = 0
+        self.temp_prog.setValue(0)
+        self.temp_prog.setVisible(True)
+        self.temp_action_btn.setEnabled(False)
+        self.temp_action_btn.setText("⏳ Measuring Forehead Temp (3s)...")
+        self.temp_val_lbl.setText("Reading...")
+        self.temp_timer.start(100)
 
-    def _on_capture_tick(self):
-        self.capture_seconds_left -= 1
-        self.capture_prog.setValue(5 - self.capture_seconds_left)
-        if self.capture_seconds_left <= 0:
-            self.capture_timer.stop()
-            self.is_capturing = False
-            self.capture_prog.setVisible(False)
-            self.record_btn.setText("🔄 Retake Vitals (5s)")
-            self.record_btn.setEnabled(True)
-            self.confirm_btn.setStyleSheet(
-                "background-color: #10B981; color: white; font-weight: bold; border-radius: 8px;"
+    def _on_temp_tick(self):
+        self._temp_ticks += 1
+        pct = int((self._temp_ticks / self._temp_max_ticks) * 100)
+        self.temp_prog.setValue(min(100, pct))
+
+        if self._temp_ticks >= self._temp_max_ticks:
+            self.temp_timer.stop()
+            self.temp_prog.setVisible(False)
+            f, c, stat, sim = sensor_manager.measure_temperature_now(duration_sec=0.2)
+            self.current_vitals.temperature_f = f
+            self.current_vitals.temperature_c = c
+            self.current_vitals.temp_measured = True
+
+            self.temp_val_lbl.setText(f"{f:.1f} °F")
+            self.temp_status_lbl.setText(f"{stat} ({c:.1f} °C)")
+
+            if f >= 100.4:
+                self.temp_status_lbl.setStyleSheet("font-size: 13px; font-weight: 700; color: #991B1B; background: #FEE2E2; padding: 6px 12px; border-radius: 6px;")
+            else:
+                self.temp_status_lbl.setStyleSheet("font-size: 13px; font-weight: 700; color: #065F46; background: #ECFDF5; padding: 6px 12px; border-radius: 6px;")
+
+            self.temp_lock_badge.setText("✅ Recorded")
+            self.temp_lock_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #065F46; background: #ECFDF5; padding: 4px 8px; border-radius: 4px;")
+            self.temp_action_btn.setText("🔄 Retake Temperature")
+            self.temp_action_btn.setEnabled(True)
+            self._update_confirm_button_state()
+
+    # -------------------------------------------------------------------------
+    # STEP 2: SPO2 & PULSE ON-DEMAND MEASUREMENT
+    # -------------------------------------------------------------------------
+
+    def _start_spo2_reading(self):
+        self._spo2_ticks = 0
+        self.spo2_prog.setValue(0)
+        self.spo2_prog.setVisible(True)
+        self.spo2_action_btn.setEnabled(False)
+        self.spo2_action_btn.setText("⏳ Measuring SpO2 & Pulse (4s)...")
+        self.spo2_val_lbl.setText("Reading...")
+        self.hr_val_lbl.setText("Reading...")
+        self.spo2_timer.start(100)
+
+    def _on_spo2_tick(self):
+        self._spo2_ticks += 1
+        pct = int((self._spo2_ticks / self._spo2_max_ticks) * 100)
+        self.spo2_prog.setValue(min(100, pct))
+
+        if self._spo2_ticks >= self._spo2_max_ticks:
+            self.spo2_timer.stop()
+            self.spo2_prog.setVisible(False)
+            spo2, hr, sp_stat, hr_stat, sim = sensor_manager.measure_spo2_pulse_now(duration_sec=0.2)
+            self.current_vitals.spo2_percent = spo2
+            self.current_vitals.heart_rate_bpm = hr
+            self.current_vitals.spo2_measured = True
+
+            self.spo2_val_lbl.setText(f"{spo2} %")
+            self.spo2_status_lbl.setText(f"SpO2: {sp_stat}")
+
+            self.hr_val_lbl.setText(f"{hr} BPM")
+            self.hr_status_lbl.setText(f"Pulse: {hr_stat}")
+
+            self.spo2_lock_badge.setText("✅ Recorded")
+            self.spo2_lock_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #065F46; background: #ECFDF5; padding: 4px 8px; border-radius: 4px;")
+            self.spo2_action_btn.setText("🔄 Retake SpO2 & Pulse")
+            self.spo2_action_btn.setEnabled(True)
+            self._update_confirm_button_state()
+
+    # -------------------------------------------------------------------------
+    # STEP 3: ECG RHYTHM ON-DEMAND MEASUREMENT
+    # -------------------------------------------------------------------------
+
+    def _start_ecg_reading(self):
+        self._ecg_ticks = 0
+        self.ecg_prog.setValue(0)
+        self.ecg_prog.setVisible(True)
+        self.ecg_action_btn.setEnabled(False)
+        self.ecg_action_btn.setText("⏳ Recording Rhythm Strip (5s)...")
+        self.ecg_canvas.is_active = True
+        self.ecg_timer.start(35)
+
+    def _on_ecg_tick(self):
+        self._ecg_ticks += 1
+        pct = int((self._ecg_ticks / self._ecg_max_ticks) * 100)
+        self.ecg_prog.setValue(min(100, pct))
+
+        # Update real-time oscilloscope canvas on each tick
+        v = sensor_manager.get_vitals()
+        self.ecg_canvas.set_data(v.ecg_waveform, v.ecg_leads_ok, is_active=True)
+
+        if self._ecg_ticks >= self._ecg_max_ticks:
+            self.ecg_timer.stop()
+            self.ecg_prog.setVisible(False)
+            waveform, status, leads_ok, bpm, sim = sensor_manager.measure_ecg_now(duration_sec=0.5)
+            self.current_vitals.ecg_measured = True
+            self.current_vitals.ecg_waveform = waveform
+            self.current_vitals.ecg_leads_ok = leads_ok
+            self.current_vitals.heart_rate_bpm = bpm
+
+            self.ecg_canvas.set_data(
+                waveform, leads_ok, is_active=False,
+                msg=f"✅ {status.upper()} ({bpm} BPM) — 5s RHYTHM STRIP LOCKED"
             )
-        else:
-            self.record_btn.setText(f"⏳ Locking Readings ({self.capture_seconds_left}s)...")
+
+            self.ecg_lock_badge.setText("✅ Recorded")
+            self.ecg_lock_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #065F46; background: #ECFDF5; padding: 4px 8px; border-radius: 4px;")
+            self.ecg_action_btn.setText("🔄 Retake ECG Strip")
+            self.ecg_action_btn.setEnabled(True)
+            self._update_confirm_button_state()
+
+    # -------------------------------------------------------------------------
+    # RESET & CONFIRMATION NAVIGATION
+    # -------------------------------------------------------------------------
+
+    def _update_confirm_button_state(self):
+        """Highlights the confirmation button once any measurement is taken."""
+        if self.current_vitals.temp_measured or self.current_vitals.spo2_measured or self.current_vitals.ecg_measured:
+            self.confirm_btn.setStyleSheet(
+                "background-color: #10B981; color: white; font-weight: bold; border-radius: 8px; font-size: 16px; padding: 12px 24px;"
+            )
+
+    def _reset_all(self):
+        """Resets all recorded cards for a clean re-examination."""
+        sensor_manager.reset_readings()
+        self.current_vitals = sensor_manager.get_vitals()
+
+        self.temp_val_lbl.setText("--.- °F")
+        self.temp_status_lbl.setText("Awaiting measurement")
+        self.temp_status_lbl.setStyleSheet("font-size: 13px; font-weight: 600; color: #64748B; background: #F8FAFC; padding: 6px 12px; border-radius: 6px;")
+        self.temp_lock_badge.setText("○ Not Measured")
+        self.temp_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        self.temp_action_btn.setText("▶️ Take Temperature Reading (3s)")
+
+        self.spo2_val_lbl.setText("-- %")
+        self.spo2_status_lbl.setText("SpO2 Saturation")
+        self.hr_val_lbl.setText("-- BPM")
+        self.hr_status_lbl.setText("Heart Rate / Pulse")
+        self.spo2_lock_badge.setText("○ Not Measured")
+        self.spo2_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        self.spo2_action_btn.setText("▶️ Take SpO2 & Pulse Reading (4s)")
+
+        self.ecg_canvas.set_data([0.5] * 80, True, is_active=False, msg="Ready for ECG capture")
+        self.ecg_lock_badge.setText("○ Not Measured")
+        self.ecg_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        self.ecg_action_btn.setText("▶️ Record ECG Rhythm (5s)")
+
+        self.confirm_btn.setStyleSheet("")
 
     def _skip_vitals(self):
-        v = self.recorded_vitals or VitalsRecord()
+        """Skips vital sign recording and proceeds with general consultation."""
+        v = self.current_vitals or sensor_manager.get_vitals()
         if self.on_vitals_confirmed:
             self.on_vitals_confirmed(v)
 
     def _confirm_and_proceed(self):
-        v = self.recorded_vitals or sensor_manager.get_vitals()
+        """Confirms recorded vitals and navigates to module selection."""
+        v = self.current_vitals or sensor_manager.get_vitals()
         if self.on_vitals_confirmed:
             self.on_vitals_confirmed(v)
