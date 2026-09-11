@@ -216,10 +216,10 @@ MAJOR_CLINICAL_PROTOCOLS: List[ClinicalProtocol] = [
         hindi_name="तीव्र दस्त और उल्टी (गैस्ट्रोएंटेराइटिस)",
         gujarati_name="ઝાડા-ઉલટી અને ડિહાઇડ્રેશન",
         keywords=[
-            "diarrhea", "loose stools", "watery stool", "vomiting", "stomach cramps", "loose motion", "dehydration",
-            "வயிற்றுப்போக்கு", "பேதி", "வாந்தி", "வயிற்று வலி", "வயிற்று பிரட்டல்", "நீர்ச்சத்து குறைவு", "வயிற்றுக்கடுப்பு",
-            "दस्त", "उल्टी", "पेट दर्द", "पतले दस्त", "पानी जैसे दस्त", "मरोड़", "निर्जलीकरण",
-            "ઝાડા", "ઉલટી", "પેટમાં ચૂંક", "પાતળા ઝાડા", "પાણીની કમી", "ડિહાઇડ્રેશન"
+            "diarrhea", "loose stools", "watery stool", "vomiting", "loose motion", "dehydration", "watery diarrhea",
+            "வயிற்றுப்போக்கு", "பேதி", "வாந்தி", "வயிற்று பிரட்டல்", "நீர்ச்சத்து குறைவு", "வயிற்றுக்கடுப்பு",
+            "दस्त", "उल्टी", "पतले दस्त", "पानी जैसे दस्त", "मरोड़", "निर्जलीकरण",
+            "ઝાડા", "ઉલટી", "પાતળા ઝાડા", "પાણીની કમી", "ડિહાઇડ્રેશન"
         ],
         summary={
             "en": "Clinical presentation aligns with acute gastroenteritis. The cornerstone of management is preventing and correcting dehydration using Oral Rehydration Salts (ORS) solution. Anti-motility drugs (e.g., Loperamide) should be avoided in infectious diarrhea.",
@@ -821,6 +821,390 @@ MAJOR_CLINICAL_PROTOCOLS: List[ClinicalProtocol] = [
             "ta": "மூச்சுத்திணறல் அல்லது முக வீக்கம் இருந்தால் உடனடியாக 108 அவசர ஊர்தியை அழைத்து மருத்துவமனைக்குச் செல்லவும். பெரிய சீழ் கட்டிகளுக்கு ஆரம்ப சுகாதார நிலையத்தில் சிறு அறுவை சிகிச்சை மூலம் சீழை அகற்ற வேண்டும்.",
             "hi": "यदि सांस लेने में तकलीफ या चेहरे पर सूजन हो तो तुरंत 108 पर कॉल करें या आपातकालीन अस्पताल जाएं। बड़े फोड़े के लिए पीएचसी जाकर डॉक्टर से सफाई करवाएं।",
             "gu": "જો શ્વાસ લેવામાં તકલીફ થાય તો તાત્કાલિક 108 બોલાવો. મોટા ગૂમડાં માટે પીએચસી પર જઈને ડૉક્ટરની સલાહ મુજબ સારવાર કરાવો."
+        }
+    ),
+
+    # 10. Shoulder Pain & Musculoskeletal Joint Strain
+    ClinicalProtocol(
+        condition_id="musculoskeletal_shoulder_joint_pain",
+        category="Musculoskeletal / Orthopedic",
+        english_name="Shoulder Pain and Joint Strain",
+        tamil_name="தோள் பட்டை மற்றும் மூட்டு வலி",
+        hindi_name="कंधे और जोड़ों का दर्द",
+        gujarati_name="ખભા અને સાંધાનો દુખાવો",
+        keywords=[
+            "shoulder", "shoulder pain", "shoulder ache", "rotator cuff", "dislocated shoulder",
+            "shoulder dislocation", "frozen shoulder", "shoulder injury", "collarbone", "shoulder joint",
+            "deltoid", "arm pain", "shoulder strain", "joint strain", "sprain", "stiff shoulder",
+            "தோள்", "தோள்பட்டை", "தோள் பட்டை", "தோள் வலி", "தோள்பட்டை வலி", "தோள் பட்டை வலி",
+            "कंधा", "कंधे", "कंधों", "कंधे में दर्द", "कंधे का दर्द", "कंधा दर्द", "कंधे की चोट", "हाथ में दर्द", "कंधा उतरना",
+            "ખભો", "ખભા", "ખભાનો દુખાવો", "ખભામાં દુખાવો", "ખભાની ઈજા", "હાથનો દુખાવો", "સાંધાનો દુખાવો"
+        ],
+        summary={
+            "en": "The patient reports shoulder pain, commonly resulting from acute muscle strain, rotator cuff tendinitis, joint sprain, or posture/overuse injury. Immediate first aid emphasizes joint resting, cold therapy, and gentle support to avoid aggravating the joint.",
+            "ta": "நோயாளிக்கு தோள் பட்டை வலி மற்றும் தசை இறுக்கத்தின் அறிகுறிகள் உள்ளன. இது தசைப்பிடிப்பு, தசைநார் காயம் அல்லது அதிக பளு தூக்குவதால் ஏற்படலாம். மூட்டுக்கு ஓய்வளித்தல், ஐஸ் ஒத்தடம் மற்றும் மிதமான ஆதரவு உடனடி நிவாரணம் தரும்.",
+            "hi": "मरीज को कंधे में दर्द और मांसपेशियों के खिंचाव के लक्षण हैं। यह वजन उठाने, गलत मुद्रा या खिंचाव के कारण हो सकता है। कंधे को आराम देना और ठंडी सिकाई करना तुरंत राहत देता है।",
+            "gu": "દર્દીને ખભામાં દુખાવો અને સ્નાયુમાં ખેંચાણના લક્ષણો છે. આ ભારે વજન ઊંચકવાથી કે સ્નાયુની ઈજાને કારણે હોઈ શકે છે. ખભાને આરામ આપવો અને બરફનો શેક કરવો ફાયદાકારક છે."
+        },
+        home_care={
+            "en": [
+                "Rest the affected shoulder completely and strictly avoid heavy lifting, sudden jerks, or overhead arm reaching for 48-72 hours.",
+                "Apply an ice pack wrapped in a cloth or clean towel for 15-20 minutes every 3-4 hours during the first 48 hours to minimize inflammation and pain.",
+                "Support the arm in a comfortable resting position using a soft pillow or simple arm sling if moving causes sharp pain.",
+                "After 48 hours, switch to mild warm compresses and begin very gentle, pain-free pendulum swinging arm movements.",
+                "For acute pain relief, adult standard medication is Paracetamol 500mg up to twice or thrice daily after meals if not contraindicated. Avoid heavy NSAIDs if hypertensive."
+            ],
+            "ta": [
+                "பாதிக்கப்பட்ட தோள்பட்டைக்கு முழு ஓய்வு அளிக்கவும்; கனமான பொருள்களைத் தூக்குவதையோ கையை தலைக்கு மேல் தூக்குவதையோ 48 மணி நேரத்திற்கு தவிர்க்கவும்.",
+                "வலியை குறைக்க ஒரு துணியில் சுற்றப்பட்ட ஐஸ் கட்டியை வலி உள்ள இடத்தில் 15-20 நிமிடங்கள் வரை ஒத்தடம் கொடுக்கவும் (ஒரு நாளைக்கு 3-4 முறை).",
+                "கை அசையும்போது தீவிர வலி இருந்தால் தலையணை அல்லது ஸ்லிங் (துணி தாங்கி) கொண்டு கைக்கு ஆதரவு அளிக்கவும்.",
+                "48 மணி நேரத்திற்குப் பிறகு மிதமான வெந்நீர் ஒத்தடம் கொடுத்து கையை மெதுவாக முன்னும் பின்னும் அசைக்கும் எளிய பயிற்சிகளைச் செய்யவும்.",
+                "தாங்க முடியாத வலிக்கு பாராசிட்டமால் 500mg மாத்திரை மருத்துவர் ஆலோசனையுடன் எடுத்துக்கொள்ளலாம்; வலி நிவாரணி தைலங்களை மென்மையாகத் தடவலாம்."
+            ],
+            "hi": [
+                "कंधे को पूरा आराम दें; अगले 48 घंटों तक कोई भी भारी वजन उठाने या हाथ को ऊपर उठाने से बचें।",
+                "दर्द और सूजन कम करने के लिए कपड़े में लपेटकर बर्फ से 15-20 मिनट सिकाई करें (दिन में 3-4 बार)।",
+                "यदि हाथ हिलाने पर तेज दर्द हो तो तकिए या आर्म स्लिंग से हाथ को सहारा देकर रखें।",
+                "48 घंटे बाद हल्की गर्म सिकाई करें और बिना जोर लगाए हाथ को धीरे-धीरे हिलाने का व्यायाम करें।",
+                "दर्द से राहत के लिए आवश्यकतानुसार पैरासिटामोल 500mg ले सकते हैं।"
+            ],
+            "gu": [
+                "ખભાને સંપૂર્ણ આરામ આપો; ભારે વજન ઊંચકવું કે હાથ ઊંચો કરવાનું ટાળો.",
+                "સોજો અને દુખાવો ઘટાડવા કપડામાં બરફ લપેટીને 15-20 મિનિટ શેક કરો.",
+                "હાથ હલાવવામાં દુખાવો થતો હોય તો ગળામાં પટ્ટો અથવા ઓશીકું રાખીને હાથને ટેકો આપો.",
+                "48 કલાક પછી હળવો ગરમ શેક કરી ધીમે ધીમે હાથની હળવી કસરત કરો.",
+                "જરૂર જણાય તો પેરાસિટામોલ 500mg ગોળી લઈ શકાય."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Sudden visible deformity, abnormal joint protrusion, or suspected shoulder dislocation.",
+                "Complete inability to raise or rotate the arm, or loss of sensation in the arm/fingers.",
+                "Numbness, tingling, severe coldness, or blue/pale discoloration of hand and fingers.",
+                "Chest tightness, pressure, or shortness of breath radiating to the left shoulder (Cardiac Emergency - Call 108 immediately!).",
+                "Severe unbearable pain immediately following a fall, collision, or direct physical impact."
+            ],
+            "ta": [
+                "தோள்பட்டை மூட்டு விலகியிருத்தல் (Dislocation) அல்லது மூட்டில் அசாதாரண வீக்கம்/வடிவ மாற்றம் ஏற்படுதல்.",
+                "கையை சிறிதும் அசைக்கவோ மேலே தூக்கவோ முடியாத நிலை அல்லது விரல்களில் உணர்வின்மை.",
+                "கைகளில் மரத்துப்போதல், ஊசி குத்துவது போன்ற உணர்வு அல்லது கை நீல நிறமாக மாறுதல்.",
+                "இடது தோள்பட்டையில் வலி பரவும் நெஞ்சு வலி, நெஞ்சு இறுக்கம் அல்லது அதீத வியர்வை (மாரடைப்பு ஆபத்து - உடனே 108 அழைக்கவும்!).",
+                "விபத்து அல்லது கீழே விழுந்ததால் ஏற்பட்ட தாங்க முடியாத வலி."
+            ],
+            "hi": [
+                "कंधे का अपनी जगह से खिसक जाना (डिसलोकेशन) या स्पष्ट रूप से टेढ़ा दिखना।",
+                "हाथ को बिल्कुल भी न उठा पाना या उंगलियों का सुन्न हो जाना।",
+                "हाथ में झुनझुनी, अत्यधिक ठंडक या नीलापन आना।",
+                "बाएं कंधे की ओर जाता हुआ सीने का दर्द या भारीपन (हार्ट अटैक का खतरा - तुरंत 108 बुलाएं)।",
+                "चोट या गिरने के बाद असहनीय दर्द होना।"
+            ],
+            "gu": [
+                "ખભાનું સાંધામાંથી ખસી જવું અથવા સોજો આવવો.",
+                "હાથ સહેજ પણ ઊંચો ન થઈ શકવો અથવા આંગળીઓ સુન્ન થવી.",
+                "ડાબા ખભામાં દુખાવાની સાથે છાતીમાં દબાણ કે શ્વાસ ચઢવો (હાર્ટ એટેકનો સંકેત - તાત્કાલિક 108 બોલાવો).",
+                "ઈજા કે અકસ્માત પછી અસહ્ય દુખાવો થવો."
+            ]
+        },
+        referral_guidance={
+            "en": "Visit the Primary Health Centre (PHC) medical officer or orthopedic specialist for an X-ray and clinical examination if pain persists beyond 3-5 days, or immediately if there is a fall, visible deformity, or inability to move the arm.",
+            "ta": "வலி 3-5 நாட்களுக்கு மேல் நீடித்தாலோ அல்லது கீழே விழுந்ததால் ஏற்பட்ட காயமாக இருந்தாலோ, எக்ஸ்-ரே (X-Ray) பரிசோதனை செய்ய ஆரம்ப சுகாதார நிலையத்தை (PHC) அணுகவும்.",
+            "hi": "यदि दर्द 3-5 दिनों से अधिक बना रहे या चोट लगी हो, तो एक्स-रे और जांच के लिए प्राथमिक स्वास्थ्य केंद्र (PHC) या हड्डी के डॉक्टर से परामर्श लें।",
+            "gu": "જો દુખાવો 3-5 દિવસથી વધુ રહે અથવા ઈજા થઈ હોય, તો એક્સ-રે અને તપાસ માટે નજીકના પ્રાથમિક આરોગ્ય કેન્દ્ર (PHC) પર જાઓ."
+        }
+    ),
+
+    # 11. Low Back Pain & Lumbar Strain
+    ClinicalProtocol(
+        condition_id="back_pain_lumbar_strain",
+        category="Musculoskeletal / Orthopedic",
+        english_name="Low Back Pain and Lumbar Strain",
+        tamil_name="முதுகு வலி மற்றும் இடுப்பு வலி",
+        hindi_name="कमर और पीठ दर्द",
+        gujarati_name="કમર અને પીઠનો દુખાવો",
+        keywords=[
+            "back pain", "lower back", "lumbar", "spine", "sciatica", "slip disc", "stiff back",
+            "முதுகு வலி", "முதுகு", "இடுப்பு வலி", "இடுப்பு", "தண்டுவடம்", "இடுப்பு பிடிப்பு",
+            "पीठ दर्द", "कमर दर्द", "कमर", "रीढ़ की हड्डी", "सायटिका",
+            "પીઠનો દુખાવો", "કમરનો દુખાવો", "કમર", "સાયટિકા"
+        ],
+        summary={
+            "en": "Symptoms indicate acute mechanical low back strain. Standard non-pharmacological care involves active gentle mobility, avoiding prolonged bed rest, using a firm mattress, and applying local heat or cold packs.",
+            "ta": "நோயாளிக்கு தசைப்பிடிப்பு சார்ந்த முதுகு மற்றும் இடுப்பு வலி உள்ளது. நீண்ட நேரம் ஒரே இடத்தில் உட்காருவதைத் தவிர்ப்பதும், மிதமான வெந்நீர் ஒத்தடமும் நல்ல பலன் தரும்.",
+            "hi": "मरीज को कमर की मांसपेशियों में खिंचाव का दर्द है। बहुत देर तक बिस्तर पर लेटे रहने के बजाय हल्की चहलकदमी और गर्म सिकाई से आराम मिलता है।",
+            "gu": "દર્દીને કમરના સ્નાયુઓમાં ખેંચાણનો દુખાવો છે. લાંબા સમય સુધી એક જગ્યાએ બેસવાનું ટાળવું અને ગરમ શેક કરવો સારો રહે છે."
+        },
+        home_care={
+            "en": [
+                "Avoid prolonged bed rest; maintain gentle walking and activities within pain limits.",
+                "Apply warm compresses or an ice pack to the lower back for 15-20 minutes, 2-3 times daily.",
+                "Sleep on a firm, supportive mattress; placing a pillow under the knees relieves spinal pressure.",
+                "Avoid heavy weight lifting, sudden bending, or twisting the spine.",
+                "Perform gentle core and back stretches once acute severe pain subsides."
+            ],
+            "ta": [
+                "நாள் முழுவதும் படுக்கையிலேயே இருக்க வேண்டாம்; மிதமான நடைப்பயிற்சியை மேற்கொள்ளவும்.",
+                "முதுகு பகுதியில் 15-20 நிமிடங்கள் வெந்நீர் ஒத்தடம் அல்லது ஐஸ் ஒத்தடம் கொடுக்கவும்.",
+                "உறுதியான படுக்கையில் படுக்கவும்; முழங்கால்களுக்கு அடியில் தலையணை வைப்பது இடுப்பு அழுத்தத்தைக் குறைக்கும்.",
+                "குனிந்து அதிக எடையைத் தூக்குவதையோ, உடலை திடீரென திருப்புவதையோ தவிர்க்கவும்."
+            ],
+            "hi": [
+                "पूरा दिन बिस्तर पर न रहें; हल्का चलना-फिरना जारी रखें।",
+                "कमर पर 15-20 मिनट गर्म पानी की थैली या बर्फ से सिकाई करें।",
+                "सख्त गद्दे पर सोएं और घुटनों के नीचे तकिया रखें।",
+                "झुककर भारी सामान न उठाएं।"
+            ],
+            "gu": [
+                "આખો દિવસ પલંગ પર સૂઈ ન રહેવું; હળવું ચાલવાનું રાખો.",
+                "કમર પર 15-20 મિનિટ ગરમ પાણીની થેલીથી શેક કરો.",
+                "વધુ વજન ઉપાડવાનું કે અચાનક વળવાનું ટાળો."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Loss of bowel or bladder control (Cauda Equina syndrome - Red Flag Emergency!).",
+                "Progressive numbness, weakness, or 'pins and needles' sensation radiating down both legs.",
+                "Back pain accompanied by high fever or unexplained weight loss.",
+                "Severe back pain after a high-velocity road accident or significant fall."
+            ],
+            "ta": [
+                "சிறுநீர் அல்லது மலம் கழிப்பதைக் கட்டுப்படுத்த முடியாத நிலை (அவசர மருத்துவ உதவி தேவை!).",
+                "கால்களில் உணர்வின்மை அல்லது மரத்துப்போதல் ஏற்படுதல்.",
+                "முதுகு வலியுடன் கூடிய தீவிர காய்ச்சல்."
+            ],
+            "hi": [
+                "पेशाब या शौच पर नियंत्रण खो जाना (तत्काल आपातकालीन चिकित्सा जरूरी)।",
+                "पैरों में सुन्नपन या कमजोरी का बढ़ना।",
+                "कमर दर्द के साथ तेज बुखार होना।"
+            ],
+            "gu": [
+                "પેશાબ કે શૌચ પરનો કાબૂ ગુમાવવો (તાત્કાલિક હોસ્પિટલ જવું).",
+                "પગમાં સુન્નતા કે નબળાઈ વધવી."
+            ]
+        },
+        referral_guidance={
+            "en": "Consult a PHC medical officer if back pain persists beyond 7 days or radiates down below the knee. Immediate hospital transfer if bowel/bladder control is impaired.",
+            "ta": "முதுகு வலி 7 நாட்களுக்கு மேல் நீடித்தாலோ அல்லது கால்களுக்குப் பரவினாலோ ஆரம்ப சுகாதார நிலையத்தை அணுகவும்.",
+            "hi": "यदि कमर दर्द 7 दिनों से अधिक रहे तो पीएचसी जाकर डॉक्टर को दिखाएं।",
+            "gu": "જો કમરનો દુખાવો અઠવાડિયાથી વધુ સમય રહે તો પ્રાથમિક આરોગ્ય કેન્દ્ર પર તપાસ કરાવો."
+        }
+    ),
+
+    # 12. Knee & Leg Joint Pain / Arthritis
+    ClinicalProtocol(
+        condition_id="knee_and_leg_joint_pain",
+        category="Musculoskeletal / Orthopedic",
+        english_name="Knee Joint Pain and Strain",
+        tamil_name="முழங்கால் மற்றும் மூட்டு வலி",
+        hindi_name="घुटने और जोड़ों का दर्द",
+        gujarati_name="ઘૂંટણ અને સાંધાનો દુખાવો",
+        keywords=[
+            "knee", "knee pain", "joint pain", "arthritis", "swollen knee", "leg joint", "knee strain",
+            "முழங்கால் வலி", "முட்டி வலி", "மூட்டு வலி", "கால் மூட்டு வலி", "முட்டி வீக்கம்", "முழங்கால் தேய்மானம்",
+            "घुटना", "घुटने का दर्द", "जोड़ों में दर्द", "गठिया", "घुटने की सूजन",
+            "ઘૂંટણ", "ઘૂંટણનો દુખાવો", "સાંધાનો સોજો", "સંધિવા"
+        ],
+        summary={
+            "en": "The patient reports knee joint pain, commonly related to ligament strain, meniscus irritation, or early degenerative joint changes (osteoarthritis). Management emphasizes joint protection, cold/warm therapy, and quadriceps strengthening.",
+            "ta": "நோயாளிக்கு முழங்கால் மூட்டு வலி மற்றும் வீக்கம் உள்ளது. மூட்டுக்கு அதிக சுமை கொடுக்காமல் ஓய்வளித்தல் மற்றும் எளிய மூட்டு பயிற்சிகள் நிவாரணம் அளிக்கும்.",
+            "hi": "मरीज को घुटने में दर्द और सूजन के लक्षण हैं। घुटने पर अधिक दबाव न डालना और सिकाई करना लाभकारी है।",
+            "gu": "દર્દીને ઘૂંટણમાં દુખાવો અને સોજો છે. ઘૂંટણ પર વધુ ભાર ન આપવો અને શેક કરવો યોગ્ય છે."
+        },
+        home_care={
+            "en": [
+                "Avoid deep squatting, sitting cross-legged on the floor, and repetitive stair climbing.",
+                "Apply an ice pack for acute swelling (15-20 min), or warm compress for morning stiffness.",
+                "Wear well-cushioned footwear and use a supportive elastic knee brace while walking.",
+                "Perform gentle straight-leg raises to strengthen quadriceps without loading the joint."
+            ],
+            "ta": [
+                "சம்மணமிட்டு தரையில் அமர்வதையும், முழங்காலை மடக்கி உட்காருவதையும் தவிர்க்கவும்.",
+                "வீக்கம் இருந்தால் ஐஸ் ஒத்தடமும், அதிக இறுக்கம் இருந்தால் வெந்நீர் ஒத்தடமும் கொடுக்கவும்.",
+                "நடைப்பயிற்சியின் போது முழங்கால் பேண்ட் (Knee Cap) அணிந்து கொள்ளவும்."
+            ],
+            "hi": [
+                "जमीन पर पालथी मारकर बैठने और सीढ़ियां चढ़ने-उतरने से बचें।",
+                "सूजन होने पर बर्फ और अकड़न होने पर गर्म पानी की सिकाई करें।",
+                "चलते समय नी-कैप (Knee Cap) का उपयोग करें।"
+            ],
+            "gu": [
+                "પલાંઠી વાળીને જમીન પર બેસવાનું ટાળો.",
+                "ચાલતી વખતે ઘૂંટણ પર પટ્ટો (Knee Cap) પહેરો."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Complete inability to bear weight on the leg or sudden locking of the knee joint.",
+                "Severe red, hot, exquisitely tender swelling (rule out septic arthritis / acute gout).",
+                "Gross visible joint deformity following an injury."
+            ],
+            "ta": [
+                "காலில் கொஞ்சமும் எடையைத் தாங்க முடியாத நிலை அல்லது முழங்கால் லாக் ஆகி மடங்காமல் போதல்.",
+                "முழங்கால் அதிக சூடாகவும், சிவந்தும் காணப்படுதல்."
+            ],
+            "hi": [
+                "पैर पर बिल्कुल वजन न दे पाना या घुटने का मुड़ना बंद हो जाना।",
+                "घुटने में अत्यधिक लाली, गर्मी और असहनीय दर्द होना।"
+            ],
+            "gu": [
+                "પગ પર જરાય વજન ન દઈ શકવું અથવા ઘૂંટણ અટકી જવું."
+            ]
+        },
+        referral_guidance={
+            "en": "Refer to PHC for X-ray and medical review if pain limits walking or lasts beyond 1-2 weeks.",
+            "ta": "வலி 1-2 வாரங்களுக்கு மேல் நீடித்தால் எக்ஸ்-ரே எடுக்க ஆரம்ப சுகாதார நிலையத்தை அணுகவும்.",
+            "hi": "यदि दर्द 1-2 सप्ताह से अधिक रहे तो एक्स-रे के लिए प्राथमिक स्वास्थ्य केंद्र जाएं।",
+            "gu": "જો દુખાવો લાંબો સમય રહે તો પ્રાથમિક આરોગ્ય કેન્દ્ર પર સંપર્ક કરવો."
+        }
+    ),
+
+    # 13. Abdominal Pain & Gastritis / Acidity
+    ClinicalProtocol(
+        condition_id="abdominal_pain_gastritis",
+        category="Gastrointestinal",
+        english_name="Abdominal Pain, Gastritis and Acidity",
+        tamil_name="வயிற்று வலி மற்றும் அசிடிட்டி / நெஞ்செரிச்சல்",
+        hindi_name="पेट दर्द, गैस और एसिडिटी",
+        gujarati_name="પેટમાં દુખાવો, ગેસ અને એસિડિટી",
+        keywords=[
+            "stomach", "stomach pain", "stomach ache", "belly pain", "abdominal pain", "gastritis", "acidity",
+            "heartburn", "indigestion", "gas", "bloating", "acid reflux", "stomach burning",
+            "வயிற்று வலி", "வயிறு வலி", "வயிறு", "வயித்து வலி", "அசிடிட்டி", "நெஞ்செரிச்சல்", "செரிமானமின்மை", "வயிறு உப்புசம்", "வாயு",
+            "पेट", "पेट दर्द", "पेट में दर्द", "एसिडिटी", "गैस", "सीने में जलन", "बदहजमी", "अपच", "पेट जलन",
+            "પેટ", "પેટનો દુખાવો", "પેટમાં દુખાવો", "એસિડિટી", "ગેસ", "અપચો", "છાતીમાં બળતરા"
+        ],
+        summary={
+            "en": "The patient reports abdominal discomfort or epigastric pain, commonly related to hyperacidity, gastritis, or dietary indigestion. Initial home measures focus on bland dietary management and avoiding irritants.",
+            "ta": "நோயாளிக்கு வயிற்று வலி மற்றும் நெஞ்செரிச்சல் / அசிடிட்டியின் அறிகுறிகள் உள்ளன. காரமான உணவுகளைத் தவிர்த்து, எளிதில் செரிமானமாகும் உணவுகளை உண்பது நிவாரணம் அளிக்கும்.",
+            "hi": "मरीज को पेट दर्द, एसिडिटी या सीने में जलन की समस्या है। हल्का और सादा भोजन करना तथा तली-भुनी चीजों से परहेज करना जरूरी है।",
+            "gu": "દર્દીને પેટમાં દુખાવો, એસિડિટી કે ગેસની તકલીફ છે. સાદો ખોરાક લેવો અને મસાલેદાર વસ્તુઓ ટાળવી જરૂરી છે."
+        },
+        home_care={
+            "en": [
+                "Eat small, frequent meals rather than large heavy portions.",
+                "Strictly avoid oily, spicy, deep-fried foods, tea, coffee, carbonated drinks, and tobacco.",
+                "Drink adequate plain room-temperature water or cool buttermilk (chaas).",
+                "Do not lie down flat immediately after eating; wait at least 2 hours before sleeping."
+            ],
+            "ta": [
+                "ஒரே நேரத்தில் அதிகமாக சாப்பிடாமல், சீரான இடைவெளியில் குறைந்த அளவு உணவு உட்கொள்ளவும்.",
+                "அதிக காரம், எண்ணெய் பலகாரங்கள், டீ, காபி மற்றும் புகையிலையைத் தவிர்க்கவும்.",
+                "சீரகத் தண்ணீர், மோர் அல்லது இளநீர் அருந்துவது வயிற்று எரிச்சலைத் தணிக்கும்.",
+                "சாப்பிட்டவுடன் படுக்கக் கூடாது; குறைந்தது 2 மணி நேரம் கழித்து தூங்கச் செல்லவும்."
+            ],
+            "hi": [
+                "एक साथ ज्यादा खाने के बजाय थोड़ा-थोड़ा करके खाएं।",
+                "अधिक मिर्च-मसालेदार, तला हुआ खाना, चाय और कॉफी से परहेज करें।",
+                "छाछ, नारियल पानी या जीरे का पानी पिएं।",
+                "खाना खाने के तुरंत बाद न लेटें।"
+            ],
+            "gu": [
+                "થોડું થોડું કરીને દિવસમાં ઘણી વાર ખાવું.",
+                "તીખો, તળેલો ખોરાક અને ચા-કોફી ટાળો.",
+                "છાશ અથવા નાળિયેર પાણી પીવું હિતકારક છે."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Severe, rigid, board-like abdominal tenderness (Acute Abdomen - Surgical Emergency!).",
+                "Vomiting of blood (hematemesis) or dark coffee-ground material.",
+                "Passing black tarry stools (melena) indicating internal bleeding.",
+                "Severe pain radiating through to the back or accompanied by high fever and jaundice."
+            ],
+            "ta": [
+                "வயிறு பலகை போல் விரைத்துப்போய் தாங்க முடியாத வலி ஏற்படுதல் (அவசர அறுவை சிகிச்சை தேவைப்படலாம்!).",
+                "வாந்தியில் ரத்தம் வருதல் அல்லது கருப்பு நிற மலம் போதல்.",
+                "வயிற்று வலியுடன் கடுமையான காய்ச்சல் அல்லது மஞ்சள் காமாலை ஏற்படுதல்."
+            ],
+            "hi": [
+                "पेट का पत्थर जैसा सख्त हो जाना और बहुत तेज दर्द (आपातकालीन स्थिति)।",
+                "उल्टी में खून आना या काले रंग का मल आना।",
+                "तेज दर्द के साथ तेज बुखार या पीलिया होना।"
+            ],
+            "gu": [
+                "પેટ પથ્થર જેવું કડક થવું અને અસહ્ય દુખાવો.",
+                "ઉલટીમાં લોહી પડવું કે કાળો ઝાડો થવો."
+            ]
+        },
+        referral_guidance={
+            "en": "Refer promptly to Primary Health Centre (PHC) if pain lasts > 48 hours or if any danger signs appear.",
+            "ta": "வலி 48 மணி நேரத்திற்கு மேல் நீடித்தாலோ அல்லது ஆபத்து அறிகுறிகள் தோன்றினாலோ உடனடியாக ஆரம்ப சுகாதார நிலையத்திற்கு செல்லவும்.",
+            "hi": "यदि दर्द 2 दिन से अधिक रहे तो तुरंत पीएचसी पर डॉक्टर से जांच करवाएं।",
+            "gu": "જો દુખાવો 2 દિવસથી વધુ સમય રહે તો પ્રાથમિક આરોગ્ય કેન્દ્ર પર જાઓ."
+        }
+    ),
+
+    # 14. Hypertension & Dizziness
+    ClinicalProtocol(
+        condition_id="hypertension_dizziness",
+        category="Cardiovascular / Metabolic",
+        english_name="Hypertension and Dizziness / Vertigo",
+        tamil_name="உயர் இரத்த அழுத்தம் மற்றும் தலைச்சுற்றல்",
+        hindi_name="उच्च रक्तचाप और चक्कर आना",
+        gujarati_name="હાઈ બ્લડ પ્રેશર અને ચક્કર",
+        keywords=[
+            "blood pressure", "high bp", "hypertension", "dizzy", "dizziness", "giddiness", "vertigo", "faint",
+            "இரத்த அழுத்தம்", "பிபி", "உயர் ரத்த அழுத்தம்", "மயக்கம்", "தலைச்சுற்றல்", "கிறுகிறுப்பு", "தலை சுற்றல்",
+            "हाई बीपी", "ब्लड प्रेशर", "रक्तचाप", "चक्कर", "चक्कर आना", "बेहोशी", "सिर घूमना",
+            "હાઈ બીપી", "બ્લડ પ્રેશર", "ચક્કર", "ચક્કર આવવા", "બેભાન થવું"
+        ],
+        summary={
+            "en": "The patient reports dizziness, lightheadedness, or elevated blood pressure symptoms. Priority care involves sitting or lying down immediately to avoid falls, calm breathing, salt restriction, and blood pressure verification.",
+            "ta": "நோயாளிக்கு உயர் இரத்த அழுத்தம், தலைச்சுற்றல் அல்லது மயக்கம் போன்ற அறிகுறிகள் உள்ளன. கீழே விழுந்து அடிபடாமல் இருக்க உடனே உட்காரவோ படுக்கவோ வேண்டும்.",
+            "hi": "मरीज को चक्कर आने या उच्च रक्तचाप के लक्षण हैं। गिरने से बचने के लिए तुरंत बैठ जाएं या लेट जाएं और बीपी की जांच कराएं।",
+            "gu": "દર્દીને ચક્કર આવવા કે બ્લડ પ્રેશર વધવાના લક્ષણો છે. તરત જ બેસી જવું અને આરામ કરવો."
+        },
+        home_care={
+            "en": [
+                "Sit or lie down immediately at the onset of dizziness to prevent falls and head injury.",
+                "Drink clean water slowly; avoid sudden changes in posture from lying to standing.",
+                "Reduce dietary sodium (table salt, pickles, papads, packaged snacks).",
+                "Ensure quiet rest away from bright flashing screens and sudden head movements."
+            ],
+            "ta": [
+                "தலைச்சுற்றல் ஏற்பட்டால் கீழே விழுவதைத் தடுக்க உடனடியாக உட்காரவும் அல்லது படுக்கவும்.",
+                "திடீரென எழுந்து நிற்பதைத் தவிர்க்கவும்; நிதானமாக எழ வேண்டும்.",
+                "உணவில் உப்பின் அளவை வெகுவாகக் குறைக்கவும் (ஊறுகாய், அப்பளம் தவிர்க்கவும்).",
+                "அமைதியான சூழலில் ஓய்வெடுக்கவும்."
+            ],
+            "hi": [
+                "चक्कर आते ही तुरंत बैठ या लेट जाएं ताकि गिरने से चोट न लगे।",
+                "अचानक उठकर खड़े न हों।",
+                "खाने में नमक की मात्रा कम करें (अचार, पापड़ से परहेज करें)।"
+            ],
+            "gu": [
+                "ચક્કર આવે ત્યારે તાત્કાલિક બેસી જાઓ.",
+                "અચાનક ઊભા થવાનું ટાળો.",
+                "ખોરાકમાં મીઠું ઓછું કરો."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Systolic BP >= 180 mmHg or Diastolic BP >= 110 mmHg (Hypertensive Crisis!).",
+                "Sudden weakness or numbness on one side of the face, arm, or leg (Stroke Warning!).",
+                "Slurred speech, sudden loss of vision, or confusion.",
+                "Severe chest pain radiating to left arm or back."
+            ],
+            "ta": [
+                "இரத்த அழுத்தம் 180/110 mmHg ஐ விட அதிகமாக இருத்தல் (அவசர நிலை!).",
+                "ஒரு பக்க முகம், கை அல்லது காலில் திடீர் பலவீனம் அல்லது உணர்வின்மை (பக்கவாத அறிகுறி!).",
+                "பேசுவதில் குளறுபடி அல்லது பார்வை மங்குதல்."
+            ],
+            "hi": [
+                "बीपी 180/110 से अधिक होना।",
+                "चेहरे, हाथ या पैर के एक तरफ अचानक कमजोरी या सुन्नपन (लकवा/स्ट्रोक का संकेत)।",
+                "बोलने में लड़खड़ाहट या सीने में तेज दर्द।"
+            ],
+            "gu": [
+                "બ્લડ પ્રેશર 180/110 થી વધુ હોવું.",
+                "શરીરના એક ભાગમાં નબળાઈ કે લકવો થવો.",
+                "બોલવામાં તકલીફ થવી."
+            ]
+        },
+        referral_guidance={
+            "en": "Visit the Primary Health Centre (PHC) for blood pressure check, ECG, and physician review. Emergency 108 transfer if one-sided weakness or chest pain appears.",
+            "ta": "இரத்த அழுத்தத்தை அளவிடவும் இசிஜி (ECG) பரிசோதனைக்கும் ஆரம்ப சுகாதார நிலையத்திற்கு செல்லவும்.",
+            "hi": "बीपी की जांच और दवा के लिए तुरंत नजदीकी स्वास्थ्य केंद्र जाएं।",
+            "gu": "બ્લડ પ્રેશરની તપાસ માટે નજીકના આરોગ્ય કેન્દ્ર પર જાઓ."
         }
     )
 ]

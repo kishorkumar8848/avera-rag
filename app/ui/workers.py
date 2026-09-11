@@ -154,28 +154,33 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
             latencies["qwen_ms"] = qwen_ms
 
 
-            # 6. NMT back to target language (if non-English)
+            # 6. NMT back to target language (if non-English and response is still in English)
             final_summary = response_schema.summary
             if self.language != "en":
-                self._emit_status(f"Translating guidance to {self.language.upper()}...")
-                translated_summary, nmt_out_ms = nmt_service.translate_from_english(final_summary, tgt_lang=self.language)
-                latencies["nmt_out_ms"] = nmt_out_ms
-                final_summary = translated_summary
+                # Check if guidance is already localized into patient's Indic language
+                is_already_localized = any(ord(c) > 127 for c in final_summary)
+                if not is_already_localized:
+                    self._emit_status(f"Translating guidance to {self.language.upper()}...")
+                    translated_summary, nmt_out_ms = nmt_service.translate_from_english(final_summary, tgt_lang=self.language)
+                    latencies["nmt_out_ms"] = nmt_out_ms
+                    final_summary = translated_summary
 
-                # Translate action items, warning signs, and referral
-                if response_schema.recommended_actions:
-                    combined_actions = "\n".join(response_schema.recommended_actions)
-                    t_act, _ = nmt_service.translate_from_english(combined_actions, tgt_lang=self.language)
-                    response_schema.recommended_actions = [line.strip("- •0123456789. ") for line in t_act.split("\n") if line.strip()]
+                    # Translate action items, warning signs, and referral
+                    if response_schema.recommended_actions:
+                        combined_actions = "\n".join(response_schema.recommended_actions)
+                        t_act, _ = nmt_service.translate_from_english(combined_actions, tgt_lang=self.language)
+                        response_schema.recommended_actions = [line.strip("- •0123456789. ") for line in t_act.split("\n") if line.strip()]
 
-                if response_schema.warning_signs:
-                    combined_warn = "\n".join(response_schema.warning_signs)
-                    t_warn, _ = nmt_service.translate_from_english(combined_warn, tgt_lang=self.language)
-                    response_schema.warning_signs = [line.strip("- •0123456789. ") for line in t_warn.split("\n") if line.strip()]
+                    if response_schema.warning_signs:
+                        combined_warn = "\n".join(response_schema.warning_signs)
+                        t_warn, _ = nmt_service.translate_from_english(combined_warn, tgt_lang=self.language)
+                        response_schema.warning_signs = [line.strip("- •0123456789. ") for line in t_warn.split("\n") if line.strip()]
 
-                if response_schema.referral:
-                    t_ref, _ = nmt_service.translate_from_english(response_schema.referral, tgt_lang=self.language)
-                    response_schema.referral = t_ref
+                    if response_schema.referral:
+                        t_ref, _ = nmt_service.translate_from_english(response_schema.referral, tgt_lang=self.language)
+                        response_schema.referral = t_ref
+                else:
+                    logger.info(f"Clinical guidance already natively localized in {self.language.upper()}; bypassing NMT translation.")
 
             # Construct complete spoken narration across all clinical sections
             full_spoken_text = self._build_full_narration(final_summary, response_schema)
@@ -358,25 +363,29 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
             # 7. Translation & TTS
             final_summary = response_schema.summary
             if self.language != "en":
-                self._emit_status(f"Translating guidance to {self.language.upper()}...")
-                translated_summary, nmt_out_ms = nmt_service.translate_from_english(final_summary, tgt_lang=self.language)
-                latencies["nmt_out_ms"] = nmt_out_ms
-                final_summary = translated_summary
+                is_already_localized = any(ord(c) > 127 for c in final_summary)
+                if not is_already_localized:
+                    self._emit_status(f"Translating guidance to {self.language.upper()}...")
+                    translated_summary, nmt_out_ms = nmt_service.translate_from_english(final_summary, tgt_lang=self.language)
+                    latencies["nmt_out_ms"] = nmt_out_ms
+                    final_summary = translated_summary
 
-                # Translate action items, warning signs, and referral
-                if response_schema.recommended_actions:
-                    combined_actions = "\n".join(response_schema.recommended_actions)
-                    t_act, _ = nmt_service.translate_from_english(combined_actions, tgt_lang=self.language)
-                    response_schema.recommended_actions = [line.strip("- •0123456789. ") for line in t_act.split("\n") if line.strip()]
+                    # Translate action items, warning signs, and referral
+                    if response_schema.recommended_actions:
+                        combined_actions = "\n".join(response_schema.recommended_actions)
+                        t_act, _ = nmt_service.translate_from_english(combined_actions, tgt_lang=self.language)
+                        response_schema.recommended_actions = [line.strip("- •0123456789. ") for line in t_act.split("\n") if line.strip()]
 
-                if response_schema.warning_signs:
-                    combined_warn = "\n".join(response_schema.warning_signs)
-                    t_warn, _ = nmt_service.translate_from_english(combined_warn, tgt_lang=self.language)
-                    response_schema.warning_signs = [line.strip("- •0123456789. ") for line in t_warn.split("\n") if line.strip()]
+                    if response_schema.warning_signs:
+                        combined_warn = "\n".join(response_schema.warning_signs)
+                        t_warn, _ = nmt_service.translate_from_english(combined_warn, tgt_lang=self.language)
+                        response_schema.warning_signs = [line.strip("- •0123456789. ") for line in t_warn.split("\n") if line.strip()]
 
-                if response_schema.referral:
-                    t_ref, _ = nmt_service.translate_from_english(response_schema.referral, tgt_lang=self.language)
-                    response_schema.referral = t_ref
+                    if response_schema.referral:
+                        t_ref, _ = nmt_service.translate_from_english(response_schema.referral, tgt_lang=self.language)
+                        response_schema.referral = t_ref
+                else:
+                    logger.info(f"Clinical guidance already natively localized in {self.language.upper()}; bypassing NMT translation.")
 
             full_spoken_text = self._build_full_narration(final_summary, response_schema)
 

@@ -79,6 +79,10 @@ class QwenBackend:
         if self._is_loaded:
             return True
 
+    def load(self) -> bool:
+        """Alias for load_model."""
+        return self.load_model()
+
         # Check memory headroom (~1.2GB required for Qwen2.5-1.5B Q4_K_M)
         if not model_manager.check_memory_headroom(required_mb=1200.0):
             logger.error("Insufficient memory to load Qwen2.5-1.5B.")
@@ -171,7 +175,7 @@ class QwenBackend:
         patient_age = patient_profile.get("age") if patient_profile else None
         patient_conditions = patient_profile.get("chronic_conditions") if patient_profile else None
 
-        # Check for direct match against verified MoHFW Major Clinical Protocols in patient's language
+        # Step 1: Direct Fast-Path for Verified MoHFW Major Clinical Protocols
         matched_protocol = lookup_clinical_protocol(
             query,
             language=lang,
@@ -179,21 +183,22 @@ class QwenBackend:
             patient_conditions=patient_conditions
         )
         if matched_protocol:
-            protocol_block = {
-                "title": matched_protocol["condition_name"],
-                "citation": matched_protocol["citation"],
-                "summary": (
-                    f"Official Guidance: {matched_protocol['summary']} "
-                    f"Recommended Actions: {'; '.join(matched_protocol['recommended_actions'][:3])}. "
-                    f"Danger Flags: {'; '.join(matched_protocol['warning_signs'][:3])}. "
-                    f"Referral: {matched_protocol['referral']}"
-                )
-            }
-            retrieved_context = [protocol_block] + [d for d in retrieved_context if d.get("title") != protocol_block["title"]]
+            latency_ms = (time.time() - start_time) * 1000.0
+            logger.info(f"Verified MoHFW Clinical Protocol matched: {matched_protocol['condition_id']} in {latency_ms:.1f}ms")
+            return MedicalResponseSchema(
+                summary=matched_protocol["summary"],
+                observations=[f"Reported symptoms matching {matched_protocol['condition_name']}"],
+                possible_explanations=[f"{matched_protocol['condition_name']} as per {matched_protocol['citation']}"],
+                recommended_actions=matched_protocol["recommended_actions"],
+                warning_signs=matched_protocol["warning_signs"],
+                referral=matched_protocol["referral"],
+                confidence=0.95,
+                sources=[matched_protocol["citation"]]
+            ), latency_ms
 
-        # Build context prompt
+        # Step 2: Build compact context prompt for LLM generation
         context_blocks = []
-        for idx, doc in enumerate(retrieved_context, 1):
+        for idx, doc in enumerate(retrieved_context[:2], 1):
             source_citation = doc.get("citation", doc.get("title", "Clinical Protocol"))
             summary = doc.get("summary", "")
             context_blocks.append(f"--- Evidence Chunk {idx} ---\nSource: {source_citation}\n{summary}")
@@ -218,39 +223,25 @@ class QwenBackend:
             user_content += f"Visual Observations: {', '.join(visual_observations)}\n\n"
         user_content += f"Retrieved Medical Evidence:\n{full_context_text}\n\nProvide structured clinical guidance:"
 
-        # First generation attempt
+        # First generation attempt via active LLM engine
         raw_output = self._call_inference(STRICT_SYSTEM_PROMPT, user_content, language=lang)
-        is_valid, parsed_schema, err = OutputValidator.validate_and_parse(raw_output)
+        is_valid, parsed_schema, err = OutputValidator.validate_and_parse(raw_output) if raw_output else (False, None, "Empty LLM output")
 
         if is_valid and parsed_schema:
             latency_ms = (time.time() - start_time) * 1000.0
             return parsed_schema, latency_ms
 
-        logger.warning(f"Initial schema validation failed: {err}. Triggering 1x self-correction retry...")
-
-        # 1x Retry self-correction prompt
-        retry_prompt = (
-            f"PREVIOUS INVALID OUTPUT:\n{raw_output}\n\n"
-            f"VALIDATION ERROR:\n{err}\n\n"
-            "Correct the JSON so it strictly matches the required medical schema without markdown fences. Provide the valid JSON now:"
+        logger.info(f"Using dynamic evidence synthesis for query: '{query}'")
+        fallback_schema = self._create_deterministic_fallback(
+            query, retrieved_context, language=lang, patient_profile=patient_profile
         )
-        retry_raw_output = self._call_inference(STRICT_SYSTEM_PROMPT, retry_prompt, language=lang)
-        is_valid_retry, parsed_schema_retry, err_retry = OutputValidator.validate_and_parse(retry_raw_output)
-
-        if is_valid_retry and parsed_schema_retry:
-            latency_ms = (time.time() - start_time) * 1000.0
-            logger.info("Self-correction retry succeeded!")
-            return parsed_schema_retry, latency_ms
-
-        logger.error(f"Retry validation also failed ({err_retry}). Using deterministic clinical protocol fallback.")
-        fallback_schema = self._create_deterministic_fallback(query, retrieved_context, language=lang)
         latency_ms = (time.time() - start_time) * 1000.0
         return fallback_schema, latency_ms
 
     def _call_inference(self, system_prompt: str, user_content: str, language: str = "en") -> str:
         """Invokes active backend engine (llama.cpp or Ollama)."""
         if not self._is_loaded and not self.load():
-            return self._generate_mock_json(user_content, language=language)
+            return ""
 
         if self.backend_type == "llama_cpp" and self.llama_engine is not None:
             messages = [
@@ -281,102 +272,44 @@ class QwenBackend:
                     "options": {
                         "temperature": settings.LLM_TEMPERATURE,
                         "top_p": settings.LLM_TOP_P,
-                        "num_predict": settings.LLM_MAX_NEW_TOKENS
+                        "num_predict": 180,
+                        "num_gpu": 0
                     }
                 }
-                res = requests.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=payload, timeout=20.0)
+                res = requests.post(f"{settings.OLLAMA_BASE_URL}/api/chat", json=payload, timeout=12.0)
                 if res.status_code == 200:
-                    return res.json().get("message", {}).get("content", "").strip()
+                    content = res.json().get("message", {}).get("content", "").strip()
+                    if content and len(content) > 15:
+                        return content
             except Exception as e:
-                logger.error(f"Ollama inference error: {e}")
+                logger.warning(f"Ollama inference error/timeout: {e}")
 
-        # Fallback protocol-grounded mock response
-        return self._generate_mock_json(user_content, language=language)
+        # Return empty string so caller falls back cleanly to dynamic evidence synthesis
+        return ""
 
     def _generate_mock_json(self, user_content: str, language: str = "en") -> str:
-        """Generates deterministic mock JSON matching retrieved evidence in patient's language."""
-        lang = language.lower() if language else "en"
+        """Generates dynamic mock JSON matching retrieved evidence in patient's language."""
+        schema = self._create_deterministic_fallback(user_content, context=[], language=language)
+        return json.dumps(OutputValidator.format_for_ui(schema), ensure_ascii=False)
 
-        if lang == "ta":
-            return json.dumps({
-                "summary": "சரிபார்க்கப்பட்ட வழிகாட்டுதலின்படி மருத்துவ முதலுதவி ஆலோசனை வழங்கப்பட்டுள்ளது.",
-                "observations": ["அறிவிக்கப்பட்ட மருத்துவ அறிகுறிகள் வழிகாட்டுதலுடன் பொருந்துகின்றன"],
-                "possible_explanations": ["ஆரம்ப சுகாதார வழிகாட்டுதல்களில் பதிவு செய்யப்பட்டுள்ள பொதுவான உடல்நிலை"],
-                "recommended_actions": [
-                    "நோயாளிக்கு வாய்வழி திரவங்கள் (ORS / சுத்தமான தண்ணீர்) மூலம் நீர்ச்சத்து குறையாமல் பார்த்துக் கொள்ளவும்",
-                    "குளிர்ந்த, நல்ல காற்றோட்டமான அறையில் ஓய்வெடுக்கவும்",
-                    "அதிக காய்ச்சல் இருந்தால் வழிகாட்டுதலின்படி பாராசிட்டமால் கொடுக்கவும்"
-                ],
-                "warning_signs": [
-                    "மூச்சுத்திணறல், அதீத சோர்வு, தொடர் வாந்தி அல்லது 3 நாட்களுக்கு மேல் நீடிக்கும் காய்ச்சல்"
-                ],
-                "referral": "உறுதியான மருத்துவ பரிசோதனைக்கு அருகில் உள்ள ஆரம்ப சுகாதார நிலையத்திற்கு (PHC) செல்லவும்.",
-                "confidence": 0.88,
-                "sources": ["தேசிய சுகாதார இயக்கம் (NHM) வழிகாட்டுதல்"]
-            }, ensure_ascii=False)
-
-        elif lang == "hi":
-            return json.dumps({
-                "summary": "सत्यापित प्राथमिक स्वास्थ्य दिशानिर्देशों के अनुसार नैदानिक मार्गदर्शन प्रदान किया गया है।",
-                "observations": ["बताए गए लक्षण प्राथमिक स्वास्थ्य मार्गदर्शिका से मेल खाते हैं"],
-                "possible_explanations": ["प्राथमिक उपचार दिशानिर्देशों के अंतर्गत स्थिति"],
-                "recommended_actions": [
-                    "मरीज को ओआरएस (ORS) अथवा साफ पानी देकर निर्जलीकरण से बचाएं",
-                    "हवादार और शांत कमरे में पर्याप्त आराम करने दें",
-                    "तेज बुखार होने पर प्रोटोकॉल के अनुसार पेरासिटामोल दें"
-                ],
-                "warning_signs": [
-                    "सांस लेने में कठिनाई, अत्यधिक सुस्ती, लगातार उल्टी या 3 दिन से अधिक तेज बुखार"
-                ],
-                "referral": "पुष्टि और उपचार के लिए तुरंत नजदीकी प्राथमिक स्वास्थ्य केंद्र (PHC) जाएं।",
-                "confidence": 0.88,
-                "sources": ["राष्ट्रीय स्वास्थ्य मिशन (NHM) दिशानिर्देश"]
-            }, ensure_ascii=False)
-
-        elif lang == "gu":
-            return json.dumps({
-                "summary": "ચકાસાયેલ માર્ગદર્શિકા મુજબ પ્રાથમિક આરોગ્ય સંભાળ સલાહ આપવામાં આવી છે.",
-                "observations": ["જણાવેલ લક્ષણો માર્ગદર્શિકા સાથે સુસંગત છે"],
-                "possible_explanations": ["પ્રાથમિક આરોગ્ય માર્ગદર્શિકા હેઠળ સામાન્ય સ્થિતિ"],
-                "recommended_actions": [
-                    "દર્દીને ORS અથવા સ્વચ્છ પાણી આપીને ડિહાઇડ્રેશન ટાળો",
-                    "હવાઉજાસ વાળા ઓરડામાં પૂરતો આરામ કરવા દો",
-                    "તીવ્ર તાવ હોય તો માર્ગદર્શિકા મુજબ પેરાસિટામોલ આપો"
-                ],
-                "warning_signs": [
-                    "શ્વાસ લેવામાં તકલીફ, વધુ પડતી સુસ્તી અથવા 3 દિવસથી વધુ સમય રહેતો તાવ"
-                ],
-                "referral": "ચોક્કસ તપાસ માટે નજીકના પ્રાથમિક આરોગ્ય કેન્દ્ર (PHC) નો સંપર્ક કરો.",
-                "confidence": 0.88,
-                "sources": ["રાષ્ટ્રીય આરોગ્ય મિશન (NHM) માર્ગદર્શિકા"]
-            }, ensure_ascii=False)
-
-        return json.dumps({
-            "summary": "Clinical guidance retrieved from verified offline protocols.",
-            "observations": ["Reported medical symptoms matching retrieved guidance"],
-            "possible_explanations": ["Condition documented in primary healthcare guidelines"],
-            "recommended_actions": [
-                "Keep patient hydrated with oral fluids (ORS / clean water)",
-                "Rest in a cool, well-ventilated area",
-                "Administer Paracetamol for high fever if indicated in protocol"
-            ],
-            "warning_signs": [
-                "Breathing difficulty, confusion, uncontrollable vomiting, or fever lasting > 3 days"
-            ],
-            "referral": "Refer promptly to a Primary Health Centre (PHC) medical officer for clinical confirmation.",
-            "confidence": 0.78,
-            "sources": ["MoHFW Standard Treatment Guidelines", "MedlinePlus Health Education"]
-        })
-
-    def _create_deterministic_fallback(self, query: str, context: List[Dict[str, Any]], language: str = "en") -> MedicalResponseSchema:
+    def _create_deterministic_fallback(
+        self,
+        query: str,
+        context: List[Dict[str, Any]],
+        language: str = "en",
+        patient_profile: Optional[Dict[str, Any]] = None
+    ) -> MedicalResponseSchema:
         """Builds a verified response directly from retrieved context when LLM generation fails."""
         lang = language.lower() if language else "en"
+        p_age = patient_profile.get("age") if patient_profile else None
+        p_conds = patient_profile.get("chronic_conditions") if patient_profile else None
+
         # 1. First priority: Check if query matches a curated major clinical protocol
-        matched = lookup_clinical_protocol(query, language=lang)
+        matched = lookup_clinical_protocol(query, language=lang, patient_age=p_age, patient_conditions=p_conds)
         if matched:
             return MedicalResponseSchema(
                 summary=matched["summary"],
-                observations=[f"Patient reported symptoms matching {matched['condition_name']}"],
+                observations=[f"Reported symptoms matching {matched['condition_name']}"],
                 possible_explanations=[f"{matched['condition_name']} as per {matched['citation']}"],
                 recommended_actions=matched["recommended_actions"],
                 warning_signs=matched["warning_signs"],
@@ -385,7 +318,7 @@ class QwenBackend:
                 sources=[matched["citation"]]
             )
 
-        # 2. Second priority: Synthesize from top retrieved context
+        # 2. Second priority: Synthesize dynamically from top retrieved context
         import re
         primary_title = context[0]["title"] if context else "Clinical Guidance"
         source_cite = context[0].get("citation", "Official Health Protocol") if context else "MoHFW Guidelines"
@@ -395,23 +328,98 @@ class QwenBackend:
         sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', context_summary) if len(s.strip()) > 15]
         summary_text = " ".join(sentences[:2]) if sentences else f"Verified clinical guidance for symptoms related to {primary_title}."
 
+        title_lower = primary_title.lower()
+        query_lower = query.lower()
+
+        is_pain = any(k in query_lower or k in title_lower for k in [
+            "pain", "ache", "shoulder", "back", "knee", "joint", "sprain", "injury", "fracture", "strain", "muscle", "bone", "dislocat"
+        ])
+        is_stomach = any(k in query_lower or k in title_lower for k in [
+            "stomach", "abdomen", "belly", "gastritis", "acid", "vomit", "diarrhea", "stool", "nausea", "ulcer", "indigestion", "heartburn"
+        ])
+        is_fever_inf = any(k in query_lower or k in title_lower for k in [
+            "fever", "cough", "cold", "infection", "shiver", "temperature", "pyrexia", "flu", "chills"
+        ])
+        is_skin = any(k in query_lower or k in title_lower for k in [
+            "skin", "rash", "itch", "allergy", "dermatitis", "wound", "burn", "boil", "abscess"
+        ])
+
+        if is_pain:
+            actions = [
+                f"Rest the affected area and strictly avoid heavy lifting, strenuous exertion, or repetitive straining of the {primary_title.lower()}.",
+                "Apply an ice pack wrapped in a clean towel for 15-20 minutes every 3-4 hours during the first 48 hours to minimize acute swelling and pain.",
+                "Keep the joint or limb comfortably supported in a resting posture; avoid sudden jerks or twisting.",
+                "For acute pain relief, adult standard medication is Paracetamol 500mg up to twice or thrice daily after meals if not contraindicated."
+            ]
+            warnings = [
+                "Severe visible joint deformity, suspected bone fracture, or limb dislocation.",
+                "Complete inability to move the limb, or progressive numbness and tingling in fingers/toes.",
+                "Severe sudden pain or swelling following trauma, fall, or road accident."
+            ]
+            referral = f"Consult a Primary Health Centre (PHC) medical officer or orthopedic specialist if pain persists over 3-5 days or limits movement."
+
+        elif is_stomach:
+            actions = [
+                "Take small, frequent bland meals (such as plain rice, porridge, or khichdi) rather than heavy portions.",
+                "Maintain adequate fluid intake with clean room-temperature water or cool buttermilk (chaas); avoid dehydration.",
+                "Strictly avoid oily, spicy, deep-fried food, tea, coffee, carbonated drinks, and tobacco.",
+                "Do not lie down flat immediately after eating; wait at least 2 hours before sleeping."
+            ]
+            warnings = [
+                "Severe, rigid, board-like abdominal tenderness (Acute Abdomen - Emergency!).",
+                "Vomiting blood or passing black, tarry stools (melena).",
+                "Persistent vomiting preventing any oral fluid intake, accompanied by high fever."
+            ]
+            referral = "Refer promptly to Primary Health Centre (PHC) for medical evaluation if abdominal pain lasts over 24-48 hours."
+
+        elif is_fever_inf:
+            actions = [
+                "Drink plenty of clean fluids: boiled and cooled water, ORS, or light clear soups (2-3 liters/day).",
+                "Perform room-temperature water sponging on forehead and extremities if temperature exceeds 101°F.",
+                "Ensure complete bed rest in a well-ventilated, comfortable room.",
+                "Take Paracetamol 500mg every 6-8 hours for fever control if needed (avoid NSAIDs like Aspirin)."
+            ]
+            warnings = [
+                "Fever persisting continuously for more than 3 days (>72 hours).",
+                "Difficulty breathing, extreme drowsiness, confusion, or inability to retain fluids.",
+                "Unusual skin rashes or bleeding spots from gums or nose."
+            ]
+            referral = "Visit Primary Health Centre (PHC) for blood smear and fever evaluation if fever lasts past 48-72 hours."
+
+        elif is_skin:
+            actions = [
+                "Keep the affected skin clean, dry, and exposed to cool circulating air.",
+                "Avoid scratching, rubbing, or using harsh chemical soaps and unverified remedies.",
+                "Apply clean cool compresses or soothing calamine lotion if skin is intact without open wounds.",
+                "Wear loose, soft, breathable cotton clothing to minimize friction."
+            ]
+            warnings = [
+                "Rapidly spreading redness, hot tender skin, or red streaks extending from the lesion.",
+                "Pus discharge, large fluctuating blisters, or accompanying high fever.",
+                "Facial swelling, lip/tongue swelling, or breathing distress (Anaphylaxis Emergency - Call 108!)."
+            ]
+            referral = "Consult a PHC medical officer or dermatologist if the skin lesion expands, weeps pus, or does not improve within 3-4 days."
+
+        else:
+            actions = [
+                f"Follow primary healthcare precautions documented for {primary_title}.",
+                "Ensure adequate physical rest and maintain comfortable daily hydration.",
+                "Avoid unprescribed self-medication, strong painkillers, or unverified home remedies."
+            ]
+            warnings = [
+                "Sudden severe worsening of symptoms or development of high persistent fever.",
+                "Difficulty breathing, chest pain, dizziness, or loss of consciousness."
+            ]
+            referral = f"Consult a Primary Health Centre (PHC) medical officer for clinical confirmation and examination regarding {primary_title}."
+
         return MedicalResponseSchema(
             summary=summary_text,
             observations=[query[:80]],
-            possible_explanations=[f"Symptom complex aligned with {primary_title} documented in {source_cite}."],
-            recommended_actions=[
-                "Rest and maintain adequate oral fluid intake (ORS, clean water, or warm soups)",
-                "Monitor temperature and symptom progression closely",
-                "Apply gentle joint support or cold compress for joint discomfort",
-                "Avoid unprescribed antibiotics or self-medication without professional advice"
-            ],
-            warning_signs=[
-                "High persistent fever lasting more than 3 days",
-                "Severe disabling joint swelling or inability to bear weight",
-                "Signs of bleeding, severe persistent vomiting, confusion, or breathing difficulty"
-            ],
-            referral="Consult a Primary Health Centre (PHC) medical officer or physician promptly if symptoms persist or red flags appear.",
-            confidence=0.75,
+            possible_explanations=[f"Symptoms aligned with {primary_title} documented in {source_cite}."],
+            recommended_actions=actions,
+            warning_signs=warnings,
+            referral=referral,
+            confidence=0.80,
             sources=[source_cite]
         )
 
