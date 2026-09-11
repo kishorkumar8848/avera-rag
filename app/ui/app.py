@@ -358,6 +358,9 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
 VyomaKioskApp = AverKioskApp
 
 
+AveraKioskApp = AverKioskApp
+
+
 def run_ui():
     """Main application entrypoint."""
     if not HAS_QT:
