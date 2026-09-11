@@ -100,6 +100,36 @@ def generate_report_html(
     p_conds = ", ".join(p.get("chronic_conditions", [])) or "None Reported"
     p_allergies = ", ".join(p.get("allergies", [])) or "None Known"
 
+    vitals = p.get("vitals")
+    vitals_html = ""
+    if vitals:
+        v_tf = vitals.get("temperature_f", 98.6)
+        v_tc = vitals.get("temperature_c", 37.0)
+        v_tstat = vitals.get("temperature_status", "Normal")
+        v_spo2 = vitals.get("spo2_percent", 98)
+        v_spo2stat = vitals.get("spo2_status", "Normal")
+        v_hr = vitals.get("heart_rate_bpm", 74)
+        v_hrstat = vitals.get("pulse_status", "Normal Sinus")
+        v_ecg = vitals.get("ecg_status", "Normal Sinus / Leads OK")
+
+        vitals_html = f"""
+        <div class="section-title" style="color: #0284C7; margin-top: 8px;">📊 RECORDED BIOMETRIC VITAL SIGNS (JETSON SENSORS)</div>
+        <table class="meta-table" style="background-color: #F0FDF4; border: 1px solid #86EFAC;">
+            <tr>
+                <td class="meta-label">🌡️ Body Temp (MLX90614):</td>
+                <td><b>{v_tf}°F</b> ({v_tc}°C) &bull; {v_tstat}</td>
+                <td class="meta-label">💨 SpO2 (MAX30100):</td>
+                <td><b>{v_spo2}%</b> &bull; {v_spo2stat}</td>
+            </tr>
+            <tr>
+                <td class="meta-label">🫀 Pulse / Heart Rate:</td>
+                <td><b>{v_hr} BPM</b> ({v_hrstat})</td>
+                <td class="meta-label">📈 ECG Monitor (AD8232):</td>
+                <td><b>{v_ecg}</b></td>
+            </tr>
+        </table>
+        """
+
     query_text = clinical_result.get("query", "--")
     summary = clinical_result.get("summary", "")
     actions = clinical_result.get("recommended_actions", [])
@@ -257,6 +287,8 @@ def generate_report_html(
                 <td><span style="color: #C2410C; font-weight: 600;">{p_allergies}</span></td>
             </tr>
         </table>
+
+        {vitals_html}
 
         <div class="section-title">Reported Symptoms (Vernacular Voice Input)</div>
         <div style="font-style: italic; color: #334155; margin-bottom: 8px; padding-left: 4px;">

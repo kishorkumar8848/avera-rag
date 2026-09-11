@@ -185,7 +185,7 @@ class QwenBackend:
         if matched_protocol:
             latency_ms = (time.time() - start_time) * 1000.0
             logger.info(f"Verified MoHFW Clinical Protocol matched: {matched_protocol['condition_id']} in {latency_ms:.1f}ms")
-            return MedicalResponseSchema(
+            schema = MedicalResponseSchema(
                 summary=matched_protocol["summary"],
                 observations=[f"Reported symptoms matching {matched_protocol['condition_name']}"],
                 possible_explanations=[f"{matched_protocol['condition_name']} as per {matched_protocol['citation']}"],
@@ -194,7 +194,8 @@ class QwenBackend:
                 referral=matched_protocol["referral"],
                 confidence=0.95,
                 sources=[matched_protocol["citation"]]
-            ), latency_ms
+            )
+            return self._enrich_with_vitals(schema, patient_profile), latency_ms
 
         # Step 2: Build compact context prompt for LLM generation
         context_blocks = []
@@ -215,8 +216,18 @@ class QwenBackend:
                 f"PATIENT PROFILE:\n"
                 f"- Name: {p_name} | Age: {p_age} years | Gender: {p_gender}\n"
                 f"- Known Comorbidities: {p_conds}\n"
-                f"- Known Allergies: {p_allergies}\n\n"
+                f"- Known Allergies: {p_allergies}\n"
             )
+            vitals = patient_profile.get("vitals")
+            if vitals:
+                t_f = vitals.get("temperature_f", 98.6)
+                sp = vitals.get("spo2_percent", 98)
+                hr = vitals.get("heart_rate_bpm", 72)
+                ecg = vitals.get("ecg_status", "Normal Sinus")
+                user_content += (
+                    f"- Vital Signs (Jetson Hardware Sensors): Temp: {t_f}°F, SpO2: {sp}%, Heart Rate: {hr} BPM, ECG: {ecg}\n"
+                )
+            user_content += "\n"
 
         user_content += f"Patient Query: {query}\n\n"
         if visual_observations:
@@ -229,14 +240,51 @@ class QwenBackend:
 
         if is_valid and parsed_schema:
             latency_ms = (time.time() - start_time) * 1000.0
-            return parsed_schema, latency_ms
+            return self._enrich_with_vitals(parsed_schema, patient_profile), latency_ms
 
         logger.info(f"Using dynamic evidence synthesis for query: '{query}'")
         fallback_schema = self._create_deterministic_fallback(
             query, retrieved_context, language=lang, patient_profile=patient_profile
         )
         latency_ms = (time.time() - start_time) * 1000.0
-        return fallback_schema, latency_ms
+        return self._enrich_with_vitals(fallback_schema, patient_profile), latency_ms
+
+    def _enrich_with_vitals(
+        self,
+        schema: MedicalResponseSchema,
+        patient_profile: Optional[Dict[str, Any]]
+    ) -> MedicalResponseSchema:
+        """Appends vital sign alerts to clinical warnings if physiological abnormalities exist."""
+        if not patient_profile or not patient_profile.get("vitals"):
+            return schema
+        v = patient_profile["vitals"]
+        spo2 = v.get("spo2_percent")
+        temp_f = v.get("temperature_f")
+        hr = v.get("heart_rate_bpm")
+
+        vitals_warnings = []
+        if spo2 is not None and spo2 < 94:
+            vitals_warnings.append(
+                f"🚨 Hypoxemia Alert (SpO2: {spo2}%): Low blood oxygen saturation detected on sensor. "
+                "Urgent evaluation at Community Health Centre (CHC) / Hospital required."
+            )
+        if temp_f is not None and temp_f >= 100.4:
+            vitals_warnings.append(
+                f"🌡️ Pyrexia / Fever Alert (Temp: {temp_f}°F): Body temperature elevated above normal range. "
+                "Maintain hydration and consult medical officer if fever persists."
+            )
+        if hr is not None and (hr > 115 or hr < 50):
+            vitals_warnings.append(
+                f"🫀 Pulse Rate Alert ({hr} BPM): Out-of-range heart rate recorded. Rest in seated position and reassess."
+            )
+
+        if vitals_warnings:
+            merged_warnings = vitals_warnings + [w for w in schema.warning_signs if w not in vitals_warnings]
+            schema.warning_signs = merged_warnings
+            if spo2 is not None and spo2 < 94 and "Urgent" not in schema.referral:
+                schema.referral = f"URGENT: Refer to nearest CHC/Hospital immediately due to low SpO2 ({spo2}%). {schema.referral}"
+
+        return schema
 
     def _call_inference(self, system_prompt: str, user_content: str, language: str = "en") -> str:
         """Invokes active backend engine (llama.cpp or Ollama)."""

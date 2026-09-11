@@ -20,9 +20,12 @@ from app.rag.hybrid_retriever import HybridRetriever
 from app.safety.patient_registry import patient_registry, PatientRecord
 from app.ui.styles import KIOSK_STYLESHEET
 from app.ui.screens.language_screen import LanguageScreen
+from app.ui.screens.citizen_screen import CitizenScreen
+from app.ui.screens.vitals_screen import VitalsScreen
 from app.ui.screens.module_screen import ModuleScreen
 from app.ui.screens.speech_screen import SpeechScreen, CitizenSearchDialog
 from app.ui.screens.camera_screen import CameraScreen
+from app.hardware.sensor_manager import VitalsRecord
 
 
 class AverKioskApp(QMainWindow if HAS_QT else object):
@@ -37,6 +40,7 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.retriever = retriever or HybridRetriever()
         self.active_language = settings.DEFAULT_LANGUAGE
         self.active_patient: Optional[PatientRecord] = patient_registry.get_patient("P001")  # Default to Kishor Kumar
+        self.active_vitals: Optional[VitalsRecord] = None
 
         if HAS_QT:
             self._init_window()
@@ -168,21 +172,31 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.screen_lang = LanguageScreen(on_language_selected=self.on_language_selected)
         self.stack.addWidget(self.screen_lang)
 
-        # Screen 1: Module Selection
+        # Screen 1: Citizen / Resident Selection Screen
+        self.screen_citizen = CitizenScreen(on_citizen_selected=self.on_citizen_selected)
+        self.stack.addWidget(self.screen_citizen)
+
+        # Screen 2: Biometric Vitals Acquisition Screen
+        self.screen_vitals = VitalsScreen(on_vitals_confirmed=self.on_vitals_confirmed)
+        if self.active_patient and hasattr(self.screen_vitals, "set_patient"):
+            self.screen_vitals.set_patient(self.active_patient)
+        self.stack.addWidget(self.screen_vitals)
+
+        # Screen 3: Module Selection (Speech vs. Camera)
         self.screen_module = ModuleScreen(
             on_speech_selected=self.open_speech_module,
             on_camera_selected=self.open_camera_module
         )
         self.stack.addWidget(self.screen_module)
 
-        # Screen 2: Speech Assistant Screen
+        # Screen 4: Speech Assistant Screen
         self.screen_speech = SpeechScreen(retriever=self.retriever)
         self.screen_speech.on_patient_changed = self._on_screen_patient_changed
         if hasattr(self.screen_speech, "set_patient") and self.active_patient:
             self.screen_speech.set_patient(self.active_patient)
         self.stack.addWidget(self.screen_speech)
 
-        # Screen 3: Camera + Speech Screen
+        # Screen 5: Camera + Speech Screen
         self.screen_camera = CameraScreen(retriever=self.retriever)
         if hasattr(self.screen_camera, "set_patient") and self.active_patient:
             self.screen_camera.set_patient(self.active_patient)
@@ -225,6 +239,8 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
     def _set_active_patient(self, patient: PatientRecord):
         self.active_patient = patient
         self._refresh_patient_display()
+        if hasattr(self, "screen_vitals") and hasattr(self.screen_vitals, "set_patient"):
+            self.screen_vitals.set_patient(patient)
         if hasattr(self, "screen_speech"):
             self.screen_speech.set_patient(patient)
         if hasattr(self, "screen_camera") and hasattr(self.screen_camera, "set_patient"):
@@ -245,32 +261,62 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.lang_badge.setText(f"Lang: {lang_code.upper()}")
         self.screen_speech.set_language(lang_code)
         self.screen_camera.set_language(lang_code)
+        # Step 2 in kiosk flow: Citizen Selection
         self.stack.setCurrentIndex(1)
         self.update_nav_buttons()
 
-    def open_speech_module(self):
+    def on_citizen_selected(self, patient: PatientRecord):
+        self._set_active_patient(patient)
+        # Step 3 in kiosk flow: Biometric Vitals Acquisition
         self.stack.setCurrentIndex(2)
         self.update_nav_buttons()
 
-    def open_camera_module(self):
+    def on_vitals_confirmed(self, vitals: VitalsRecord):
+        self.active_vitals = vitals
+        if hasattr(self, "screen_speech") and hasattr(self.screen_speech, "set_vitals"):
+            self.screen_speech.set_vitals(vitals)
+        if hasattr(self, "screen_camera") and hasattr(self.screen_camera, "set_vitals"):
+            self.screen_camera.set_vitals(vitals)
+        # Step 4 in kiosk flow: Module Selection (Speech or Camera)
         self.stack.setCurrentIndex(3)
         self.update_nav_buttons()
-        # If camera screen has viewfinder starter, trigger it
+
+    def open_speech_module(self):
+        # Step 5a in kiosk flow: Speech Consultation
+        self.stack.setCurrentIndex(4)
+        self.update_nav_buttons()
+
+    def open_camera_module(self):
+        # Step 5b in kiosk flow: Camera Multimodal Examination
+        self.stack.setCurrentIndex(5)
+        self.update_nav_buttons()
         if hasattr(self.screen_camera, "start_viewfinder"):
             self.screen_camera.start_viewfinder()
 
     def navigate_home(self):
+        if hasattr(self, "screen_camera") and hasattr(self.screen_camera, "stop_viewfinder"):
+            self.screen_camera.stop_viewfinder()
         self.stack.setCurrentIndex(0)
         self.update_nav_buttons()
 
     def navigate_back(self):
         curr = self.stack.currentIndex()
-        if curr in [2, 3]:
-            # Stop viewfinder if leaving camera
-            if curr == 3 and hasattr(self.screen_camera, "stop_viewfinder"):
+        if curr == 5:
+            # Leaving camera screen -> back to module selection
+            if hasattr(self.screen_camera, "stop_viewfinder"):
                 self.screen_camera.stop_viewfinder()
+            self.stack.setCurrentIndex(3)
+        elif curr == 4:
+            # Leaving speech screen -> back to module selection
+            self.stack.setCurrentIndex(3)
+        elif curr == 3:
+            # Leaving module screen -> back to vitals acquisition
+            self.stack.setCurrentIndex(2)
+        elif curr == 2:
+            # Leaving vitals screen -> back to citizen selection
             self.stack.setCurrentIndex(1)
         elif curr == 1:
+            # Leaving citizen screen -> back to language selection
             self.stack.setCurrentIndex(0)
         self.update_nav_buttons()
 

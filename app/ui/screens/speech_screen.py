@@ -158,6 +158,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.active_patient: Optional[PatientRecord] = default_list[0] if default_list else (
             patient_registry.get_all()[0] if patient_registry.get_all() else None
         )
+        self.active_vitals: Optional[Any] = None
 
         # 10-Second Click-to-Record State
         self.is_recording = False
@@ -183,6 +184,10 @@ class SpeechScreen(QWidget if HAS_QT else object):
             self._update_citizen_display()
         if hasattr(self, "placeholder_label"):
             self.placeholder_label.setText(self._get_placeholder_text())
+
+    def set_vitals(self, vitals: Any):
+        """Updates active recorded vital signs."""
+        self.active_vitals = vitals
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -361,7 +366,9 @@ class SpeechScreen(QWidget if HAS_QT else object):
             self.mic_btn.setEnabled(True)
             return
 
-        patient_profile = self.active_patient.to_dict() if self.active_patient else None
+        patient_profile = self.active_patient.to_dict() if self.active_patient else {}
+        if self.active_vitals:
+            patient_profile["vitals"] = self.active_vitals.to_clinical_dict() if hasattr(self.active_vitals, "to_clinical_dict") else self.active_vitals
 
         # Launch pipeline worker on global thread pool
         worker = SpeechPipelineWorker(
@@ -492,6 +499,50 @@ class SpeechScreen(QWidget if HAS_QT else object):
         q_layout.addWidget(q_header)
         q_layout.addWidget(q_text)
         self.results_layout.addWidget(q_frame)
+
+        # 1b. Recorded Patient Vital Signs Card (Hardware Sensors)
+        vitals_dict = res.get("patient_profile", {}).get("vitals") or (
+            self.active_vitals.to_clinical_dict() if (hasattr(self, "active_vitals") and self.active_vitals and hasattr(self.active_vitals, "to_clinical_dict")) else None
+        )
+        if vitals_dict:
+            v_frame = QFrame()
+            v_frame.setObjectName("CardFrame")
+            v_frame.setStyleSheet("QFrame#CardFrame { border-left: 5px solid #0284C7; }")
+            v_layout = QVBoxLayout(v_frame)
+            v_layout.setContentsMargins(18, 14, 18, 14)
+            v_layout.setSpacing(10)
+
+            v_title = QLabel("📊 Recorded Patient Vital Signs (Jetson Hardware Sensors)")
+            v_title.setStyleSheet("font-size: 16px; font-weight: 800; color: #0369A1;")
+            v_layout.addWidget(v_title)
+
+            metrics_row = QHBoxLayout()
+            metrics_row.setSpacing(10)
+
+            t_val = vitals_dict.get("temperature_f", 98.6)
+            t_stat = vitals_dict.get("temperature_status", "Normal")
+            t_chip = QLabel(f"🌡️ <b>Temp:</b> {t_val}°F ({t_stat})")
+            t_chip.setStyleSheet("background: #F0F9FF; color: #0369A1; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+            metrics_row.addWidget(t_chip)
+
+            sp_val = vitals_dict.get("spo2_percent", 98)
+            sp_stat = vitals_dict.get("spo2_status", "Normal")
+            sp_chip = QLabel(f"💨 <b>SpO2:</b> {sp_val}% ({sp_stat})")
+            sp_chip.setStyleSheet("background: #ECFDF5; color: #047857; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+            metrics_row.addWidget(sp_chip)
+
+            hr_val = vitals_dict.get("heart_rate_bpm", 74)
+            hr_chip = QLabel(f"🫀 <b>Pulse:</b> {hr_val} BPM")
+            hr_chip.setStyleSheet("background: #FEF2F2; color: #B91C1C; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+            metrics_row.addWidget(hr_chip)
+
+            ecg_stat = vitals_dict.get("ecg_status", "Normal Sinus")
+            ecg_chip = QLabel(f"📈 <b>ECG:</b> {ecg_stat}")
+            ecg_chip.setStyleSheet("background: #F5F3FF; color: #6D28D9; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+            metrics_row.addWidget(ecg_chip)
+
+            v_layout.addLayout(metrics_row)
+            self.results_layout.addWidget(v_frame)
 
         # 2. Guidance Summary Card
         s_frame = QFrame()
@@ -659,7 +710,9 @@ class SpeechScreen(QWidget if HAS_QT else object):
         """Sends clinical slip directly to USB printer and archives PDF copy."""
         if not self.last_result:
             return
-        patient_dict = self.active_patient.to_dict() if self.active_patient else None
+        patient_dict = self.active_patient.to_dict() if self.active_patient else {}
+        if hasattr(self, "active_vitals") and self.active_vitals:
+            patient_dict["vitals"] = self.active_vitals.to_clinical_dict() if hasattr(self.active_vitals, "to_clinical_dict") else self.active_vitals
         ok, msg = print_clinical_report(self, patient_dict, self.last_result, self.active_language)
         if ok:
             self.status_label.setText("Clinical slip dispatched to printer")
