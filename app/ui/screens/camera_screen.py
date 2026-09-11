@@ -117,9 +117,17 @@ class CameraScreen(QWidget if HAS_QT else object):
         left_layout.setContentsMargins(18, 18, 18, 18)
         left_layout.setSpacing(12)
 
+        # Camera header row with hardware status badge
+        cam_hdr_row = QHBoxLayout()
         preview_header = QLabel("Camera Live Viewfinder")
         preview_header.setStyleSheet("font-size: 16px; font-weight: 700; color: #1E293B;")
-        left_layout.addWidget(preview_header)
+        cam_hdr_row.addWidget(preview_header)
+        cam_hdr_row.addStretch()
+
+        self.camera_status_badge = QLabel("🔍 Checking...")
+        self.camera_status_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 6px;")
+        cam_hdr_row.addWidget(self.camera_status_badge)
+        left_layout.addLayout(cam_hdr_row)
 
         # Viewfinder display label
         self.preview_label = QLabel()
@@ -209,12 +217,24 @@ class CameraScreen(QWidget if HAS_QT else object):
         if self.captured_image is not None:
             return  # Preview is currently frozen on captured frame
 
+        # Update hardware status indicator
+        is_hw = camera_service.is_hardware_available
+        if hasattr(self, "camera_status_badge"):
+            if is_hw:
+                self.camera_status_badge.setText("🟢 Live USB Camera Active")
+                self.camera_status_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #065F46; background: #D1FAE5; padding: 4px 8px; border-radius: 6px;")
+            else:
+                self.camera_status_badge.setText("🟡 Camera Disconnected")
+                self.camera_status_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #92400E; background: #FEF3C7; padding: 4px 8px; border-radius: 6px;")
+
         success, pil_img, jpg_bytes = camera_service.capture_frame()
         if success and jpg_bytes:
             qimg = QImage()
             qimg.loadFromData(jpg_bytes)
+            lbl_w = max(self.preview_label.width(), 340)
+            lbl_h = max(self.preview_label.height(), 240)
             pix = QPixmap.fromImage(qimg).scaled(
-                self.preview_label.width() or 340, 240,
+                lbl_w, lbl_h,
                 Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
             self.preview_label.setPixmap(pix)

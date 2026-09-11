@@ -160,17 +160,25 @@ class AudioPlayer:
         # 2. On Linux (Ubuntu / Jetson Orin Nano), use native PulseAudio (paplay) or ALSA (aplay)
         # This completely avoids PortAudio callback underrun cracking / breaking on Jetson hardware!
         if os.name == "posix":
-            temp_path = "/tmp/tts_playback.wav"
+            import tempfile
+            tmp_wav = tempfile.NamedTemporaryFile(suffix=".wav", prefix="tts_play_", delete=False)
+            temp_path = tmp_wav.name
             try:
-                with open(temp_path, "wb") as f:
-                    f.write(wav_bytes)
+                tmp_wav.write(wav_bytes)
+                tmp_wav.close()
+
+                # Ensure system default sink volume is set to 100% (0 dB)
+                try:
+                    subprocess.run(["pactl", "set-sink-volume", "@DEFAULT_SINK@", "100%"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1.0)
+                except Exception:
+                    pass
 
                 paplay_bin = shutil.which("paplay")
                 aplay_bin = shutil.which("aplay")
                 play_cmd = None
 
                 if paplay_bin:
-                    play_cmd = [paplay_bin, temp_path]
+                    play_cmd = [paplay_bin, "--volume=65536", temp_path]
                 elif aplay_bin:
                     play_cmd = [aplay_bin, "-q", temp_path]
 
@@ -180,11 +188,20 @@ class AudioPlayer:
                     self._proc.wait()
                     with self._lock:
                         self._proc = None
-                    if on_finished:
-                        on_finished()
-                    return
+
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+
+                if on_finished:
+                    on_finished()
+                return
             except Exception as ex:
                 logger.debug(f"Linux native audio player fallback: {ex}")
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
 
         # 3. Sounddevice fallback
         if not HAS_SOUNDDEVICE:

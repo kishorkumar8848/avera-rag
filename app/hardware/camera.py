@@ -39,6 +39,7 @@ class CameraService:
         self.target_height = target_height
         self.backend = backend
         self._cap = None
+        self._last_probe_time = 0.0
 
     def _get_gstreamer_pipeline(self) -> str:
         """Standard Jetson CSI camera GStreamer pipeline string."""
@@ -55,17 +56,25 @@ class CameraService:
             logger.warning("OpenCV not installed. Camera running in mock mode.")
             return False
 
+        # Fast non-blocking check on Linux: if no /dev/video* devices exist, don't stall UI with cv2 probe
+        import glob
+        import os
+        if os.name == "posix":
+            nodes = glob.glob("/dev/video*")
+            if not nodes:
+                return False
+
+        # Throttle re-probe attempts to at most once every 2 seconds
+        now = time.time()
+        if (now - self._last_probe_time) < 2.0:
+            return False
+        self._last_probe_time = now
+
         # Candidate indices to probe: configured index first, then common indices
         candidates = [self.camera_index]
         for idx in [0, 1, 2, 3]:
             if idx not in candidates:
                 candidates.append(idx)
-
-        # Check existing /dev/video* devices if on Linux
-        import glob
-        existing_video_nodes = glob.glob("/dev/video*")
-        if existing_video_nodes:
-            logger.info(f"Detected video device nodes: {existing_video_nodes}")
 
         for idx in candidates:
             # Attempt USB / V4L2 with MJPG
@@ -107,7 +116,6 @@ class CameraService:
         except Exception as e:
             logger.debug(f"Jetson GStreamer camera open failed: {e}")
 
-        logger.warning(f"No active camera hardware found across indices {candidates}.")
         return False
 
     def capture_frame(self) -> Tuple[bool, Optional[Image.Image], Optional[bytes]]:

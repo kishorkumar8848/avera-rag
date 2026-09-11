@@ -97,15 +97,53 @@ class TTSService:
                 return path
         return None
 
-    def clean_spoken_text(self, text: str) -> str:
+    def clean_spoken_text(self, text: str, language: str = "en") -> str:
         """
-        Sanitizes clinical narrative before TTS synthesis:
-        Strips markdown bold, bullet symbols, hashes, bracketed citations, and raw punctuation
-        that causes offline speech synthesizers to stutter, stumble, or break.
+        Sanitizes and normalizes clinical narrative before TTS synthesis:
+        1. Expands numerals and medical units into native language words.
+        2. Strips markdown bold, bullets, hashes, brackets, and conversational noise.
+        3. Formats natural sentence pauses for smooth continuous speech.
         """
         if not text:
             return ""
-        # Remove bold/italic markdown
+
+        lang = language.lower().strip()
+
+        # Numerals and units expansion
+        if lang == "ta":
+            text = re.sub(r'\b108\b', 'நூற்று எட்டு', text)
+            text = re.sub(r'\b112\b', 'நூற்று பன்னிரண்டு', text)
+            text = re.sub(r'\b500\s*(?:mg|மி\.?கி)?\b', 'ஐந்நூறு மில்லிகிராம்', text, flags=re.IGNORECASE)
+            text = re.sub(r'\b650\s*(?:mg|மி\.?கி)?\b', 'அறுநூற்று ஐம்பது மில்லிகிராம்', text, flags=re.IGNORECASE)
+            text = re.sub(r'\b(?:mg|மி\.?கி)\b', 'மில்லிகிராம்', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bml\b', 'மில்லிலிட்டர்', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bORS\b', 'ஓஆர்எஸ் கரைசல்', text, flags=re.IGNORECASE)
+        elif lang == "hi":
+            text = re.sub(r'\b108\b', 'एक सौ आठ', text)
+            text = re.sub(r'\b112\b', 'एक सौ बारह', text)
+            text = re.sub(r'\b500\s*(?:mg)?\b', 'पांच सौ मिलीग्राम', text, flags=re.IGNORECASE)
+            text = re.sub(r'\b650\s*(?:mg)?\b', 'छह सौ पचास मिलीग्राम', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bmg\b', 'मिलीग्राम', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bml\b', 'मिलीलीटर', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bORS\b', 'ओआरएस घोल', text, flags=re.IGNORECASE)
+        elif lang == "gu":
+            text = re.sub(r'\b108\b', 'એક સો આઠ', text)
+            text = re.sub(r'\b112\b', 'એક સો બાર', text)
+            text = re.sub(r'\b500\s*(?:mg)?\b', 'પાંચસો મિલીગ્રામ', text, flags=re.IGNORECASE)
+            text = re.sub(r'\b650\s*(?:mg)?\b', 'છ સો પચાસ મિલીગ્રામ', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bmg\b', 'મિલીગ્રામ', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bml\b', 'મિલીલીટર', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bORS\b', 'ઓઆરએસ', text, flags=re.IGNORECASE)
+        else:
+            text = re.sub(r'\b108\b', 'one zero eight', text)
+            text = re.sub(r'\b112\b', 'one one two', text)
+            text = re.sub(r'\b500\s*mg\b', 'five hundred milligrams', text, flags=re.IGNORECASE)
+            text = re.sub(r'\b650\s*mg\b', 'six hundred fifty milligrams', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bmg\b', 'milligrams', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bml\b', 'milliliters', text, flags=re.IGNORECASE)
+            text = re.sub(r'\bORS\b', 'oral rehydration solution', text, flags=re.IGNORECASE)
+
+        # Remove bold/italic markdown and headers
         cleaned = re.sub(r"[*_~`#]+", " ", text)
         # Remove markdown bullet points and numbered lists
         cleaned = re.sub(r"^\s*[-•*]\s+", "", cleaned, flags=re.MULTILINE)
@@ -117,27 +155,61 @@ class TTSService:
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         return cleaned
 
-    def split_into_sentences(self, text: str) -> List[str]:
+    def split_into_sentences(self, text: str, language: str = "en") -> List[str]:
         """Splits narrative into clean sentence units for streaming speech playback."""
-        clean = self.clean_spoken_text(text)
+        clean = self.clean_spoken_text(text, language=language)
         sentences = re.split(r"(?<=[.!?।])\s+", clean)
         return [s.strip() for s in sentences if len(s.strip()) > 3]
 
     def synthesize(self, text: str, language: str = "en") -> Tuple[Optional[bytes], float]:
         """
-        Synthesizes text into 16kHz mono WAV bytes strictly offline.
-        Returns: (wav_bytes: Optional[bytes], latency_ms: float)
+        Synthesizes text into natural audio WAV bytes strictly offline.
+        Tier 1: Meta MMS-TTS (Neural VITS Architecture) -> Lifelike human voice.
+        Tier 2: System espeak-ng (Tuned prosody: -s 125, -p 48, -a 100, -g 6).
+        Tier 3: Local Bhashini Flite Engine.
+        Tier 4: pyttsx3 offline engine.
+        Tier 5: Soft chime fallback.
         """
         start_time = time.time()
         if not text:
             return None, 0.0
 
         lang = language.lower().strip()
-        clean_text = self.clean_spoken_text(text)
+        clean_text = self.clean_spoken_text(text, language=lang)
         if not clean_text:
             return None, 0.0
 
-        # Attempt 1: Local Bhashini Flite Engine
+        # Attempt 1: Meta MMS-TTS (Neural VITS Architecture - Studio Quality Human Speech)
+        try:
+            from app.models.mms_tts import mms_tts_service
+            if mms_tts_service.is_available:
+                mms_wav, mms_lat = mms_tts_service.synthesize(clean_text, language=lang)
+                if mms_wav and len(mms_wav) > 500:
+                    return mms_wav, mms_lat
+        except Exception as e:
+            logger.debug(f"Neural MMS-TTS attempt bypassed: {e}")
+
+        # Attempt 2: System espeak-ng / espeak CLI (Tuned prosody for clear continuous speech)
+        if self._espeak_bin:
+            espeak_voice = ESPEAK_VOICE_MAP.get(lang, "en-us")
+            try:
+                tmp_out = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                tmp_out.close()
+                cmd = [self._espeak_bin, "-v", espeak_voice, "-s", "125", "-p", "48", "-a", "100", "-g", "6", "-w", tmp_out.name, clean_text]
+                res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8.0)
+                if res.returncode == 0 and os.path.exists(tmp_out.name) and os.path.getsize(tmp_out.name) > 100:
+                    with open(tmp_out.name, "rb") as f:
+                        wav_bytes = f.read()
+                    os.remove(tmp_out.name)
+                    latency_ms = (time.time() - start_time) * 1000.0
+                    logger.info(f"espeak-ng synthesized {len(wav_bytes)} bytes for '{lang}' ({latency_ms:.1f}ms).")
+                    return wav_bytes, latency_ms
+                if os.path.exists(tmp_out.name):
+                    os.remove(tmp_out.name)
+            except Exception as e:
+                logger.debug(f"espeak synthesis failed: {e}")
+
+        # Attempt 3: Local Bhashini Flite Engine
         if self._flite_bin and self._flite_voices_dir:
             voice_file = FLITE_VOICE_MAP.get(lang, "cmu_us_slt.flitevox")
             voice_path = os.path.join(self._flite_voices_dir, voice_file)
@@ -158,27 +230,6 @@ class TTSService:
                         os.remove(tmp_out.name)
                 except Exception as e:
                     logger.debug(f"Flite synthesis failed: {e}")
-
-        # Attempt 2: System espeak-ng / espeak CLI (Standard on Jetson / Ubuntu Linux)
-        # Using -s 135 (words/min) and -p 50 ensures clear, intelligible speech without clipping syllables
-        if self._espeak_bin:
-            espeak_voice = ESPEAK_VOICE_MAP.get(lang, "en-us")
-            try:
-                tmp_out = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-                tmp_out.close()
-                cmd = [self._espeak_bin, "-v", espeak_voice, "-s", "135", "-p", "50", "-w", tmp_out.name, clean_text]
-                res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6.0)
-                if res.returncode == 0 and os.path.exists(tmp_out.name) and os.path.getsize(tmp_out.name) > 100:
-                    with open(tmp_out.name, "rb") as f:
-                        wav_bytes = f.read()
-                    os.remove(tmp_out.name)
-                    latency_ms = (time.time() - start_time) * 1000.0
-                    logger.info(f"espeak-ng synthesized {len(wav_bytes)} bytes for '{lang}' ({latency_ms:.1f}ms).")
-                    return wav_bytes, latency_ms
-                if os.path.exists(tmp_out.name):
-                    os.remove(tmp_out.name)
-            except Exception as e:
-                logger.debug(f"espeak synthesis failed: {e}")
 
         # Attempt 3: Local pyttsx3 offline engine (Windows SAPI5 / Linux espeak)
         try:
