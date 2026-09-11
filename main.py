@@ -34,7 +34,7 @@ from app.ui.app import run_ui
 
 if __name__ == "__main__":
     print("========================================================================")
-    print("      Vyoma Offline Medical AI Assistant - Starting Kiosk               ")
+    print("      AVERA - Offline Medical AI Assistant - Starting Kiosk            ")
     print("========================================================================")
     try:
         log_system_summary()

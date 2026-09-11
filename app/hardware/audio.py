@@ -124,10 +124,13 @@ class AudioRecorder:
 class AudioPlayer:
     """
     Plays audio asynchronously from memory buffers without blocking the main UI thread.
+    Uses native OS audio servers (winsound on Windows, paplay/aplay on Linux/Jetson,
+    with sounddevice as universal fallback) to prevent buffer underrun crackling.
     """
 
     def __init__(self):
         self._current_stream = None
+        self._proc = None
         self._lock = threading.Lock()
 
     def play_wav_bytes(self, wav_bytes: bytes, on_finished: Optional[Callable[[], None]] = None):
@@ -136,7 +139,10 @@ class AudioPlayer:
 
     def _play_worker(self, wav_bytes: bytes, on_finished: Optional[Callable[[], None]] = None):
         import os
-        # On Windows, use winsound to guarantee output to Windows default system speakers
+        import subprocess
+        import shutil
+
+        # 1. On Windows, use winsound to guarantee output to Windows default system speakers
         if os.name == "nt":
             try:
                 import winsound
@@ -151,6 +157,36 @@ class AudioPlayer:
             except Exception as ex:
                 logger.debug(f"winsound playback fallback: {ex}")
 
+        # 2. On Linux (Ubuntu / Jetson Orin Nano), use native PulseAudio (paplay) or ALSA (aplay)
+        # This completely avoids PortAudio callback underrun cracking / breaking on Jetson hardware!
+        if os.name == "posix":
+            temp_path = "/tmp/tts_playback.wav"
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(wav_bytes)
+
+                paplay_bin = shutil.which("paplay")
+                aplay_bin = shutil.which("aplay")
+                play_cmd = None
+
+                if paplay_bin:
+                    play_cmd = [paplay_bin, temp_path]
+                elif aplay_bin:
+                    play_cmd = [aplay_bin, "-q", temp_path]
+
+                if play_cmd:
+                    with self._lock:
+                        self._proc = subprocess.Popen(play_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self._proc.wait()
+                    with self._lock:
+                        self._proc = None
+                    if on_finished:
+                        on_finished()
+                    return
+            except Exception as ex:
+                logger.debug(f"Linux native audio player fallback: {ex}")
+
+        # 3. Sounddevice fallback
         if not HAS_SOUNDDEVICE:
             logger.info("sounddevice not available. Audio playback simulated.")
             time.sleep(1.0)
@@ -171,8 +207,17 @@ class AudioPlayer:
 
     def stop(self):
         """Immediately stops audio playback."""
+        with self._lock:
+            if self._proc is not None:
+                try:
+                    self._proc.terminate()
+                except Exception:
+                    pass
+                self._proc = None
+
         if HAS_SOUNDDEVICE:
             try:
                 sd.stop()
             except Exception as e:
                 logger.debug(f"Error stopping sounddevice: {e}")
+

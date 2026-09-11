@@ -97,9 +97,30 @@ class TTSService:
                 return path
         return None
 
+    def clean_spoken_text(self, text: str) -> str:
+        """
+        Sanitizes clinical narrative before TTS synthesis:
+        Strips markdown bold, bullet symbols, hashes, bracketed citations, and raw punctuation
+        that causes offline speech synthesizers to stutter, stumble, or break.
+        """
+        if not text:
+            return ""
+        # Remove bold/italic markdown
+        cleaned = re.sub(r"[*_~`#]+", " ", text)
+        # Remove markdown bullet points and numbered lists
+        cleaned = re.sub(r"^\s*[-•*]\s+", "", cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r"^\s*\d+\.\s+", "", cleaned, flags=re.MULTILINE)
+        # Remove brackets and parentheses
+        cleaned = re.sub(r"[\[\]\(\)\{\}]", " ", cleaned)
+        # Clean multi-spaces and excessive newlines into natural sentence pauses
+        cleaned = re.sub(r"[\r\n]+", ". ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
+
     def split_into_sentences(self, text: str) -> List[str]:
         """Splits narrative into clean sentence units for streaming speech playback."""
-        sentences = re.split(r"(?<=[.!?।])\s+", text)
+        clean = self.clean_spoken_text(text)
+        sentences = re.split(r"(?<=[.!?।])\s+", clean)
         return [s.strip() for s in sentences if len(s.strip()) > 3]
 
     def synthesize(self, text: str, language: str = "en") -> Tuple[Optional[bytes], float]:
@@ -112,6 +133,9 @@ class TTSService:
             return None, 0.0
 
         lang = language.lower().strip()
+        clean_text = self.clean_spoken_text(text)
+        if not clean_text:
+            return None, 0.0
 
         # Attempt 1: Local Bhashini Flite Engine
         if self._flite_bin and self._flite_voices_dir:
@@ -121,7 +145,7 @@ class TTSService:
                 try:
                     tmp_out = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
                     tmp_out.close()
-                    cmd = [self._flite_bin, "-voice", voice_path, "-t", text, tmp_out.name]
+                    cmd = [self._flite_bin, "-voice", voice_path, "-t", clean_text, tmp_out.name]
                     res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5.0)
                     if res.returncode == 0 and os.path.exists(tmp_out.name) and os.path.getsize(tmp_out.name) > 100:
                         with open(tmp_out.name, "rb") as f:
@@ -136,13 +160,14 @@ class TTSService:
                     logger.debug(f"Flite synthesis failed: {e}")
 
         # Attempt 2: System espeak-ng / espeak CLI (Standard on Jetson / Ubuntu Linux)
+        # Using -s 135 (words/min) and -p 50 ensures clear, intelligible speech without clipping syllables
         if self._espeak_bin:
             espeak_voice = ESPEAK_VOICE_MAP.get(lang, "en-us")
             try:
                 tmp_out = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
                 tmp_out.close()
-                cmd = [self._espeak_bin, "-v", espeak_voice, "-w", tmp_out.name, text]
-                res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5.0)
+                cmd = [self._espeak_bin, "-v", espeak_voice, "-s", "135", "-p", "50", "-w", tmp_out.name, clean_text]
+                res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=6.0)
                 if res.returncode == 0 and os.path.exists(tmp_out.name) and os.path.getsize(tmp_out.name) > 100:
                     with open(tmp_out.name, "rb") as f:
                         wav_bytes = f.read()
@@ -164,7 +189,7 @@ class TTSService:
             def _run_pyttsx3():
                 try:
                     engine = pyttsx3.init()
-                    engine.setProperty("rate", 140)
+                    engine.setProperty("rate", 135)
 
                     # Select best available voice for language
                     target_keys = PYTTSX3_VOICE_MAP.get(lang, ["en"])
@@ -183,7 +208,7 @@ class TTSService:
                     if selected_voice:
                         engine.setProperty("voice", selected_voice)
 
-                    engine.save_to_file(text, tmp_out.name)
+                    engine.save_to_file(clean_text, tmp_out.name)
                     engine.runAndWait()
                     engine.stop()
                 except Exception as ex:

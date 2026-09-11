@@ -104,12 +104,57 @@ class CameraService:
 
         return True, pil_img, jpg_bytes
 
+    @property
+    def is_hardware_available(self) -> bool:
+        """Returns True if a physical camera is currently connected and accessible."""
+        if self._cap is not None and self._cap.isOpened():
+            return True
+        # Fast non-blocking check
+        import glob
+        if glob.glob("/dev/video*"):
+            return True
+        return False
+
     def _create_synthetic_preview(self) -> Image.Image:
-        """Generates a synthetic medical preview pattern when camera is offline."""
+        """
+        Generates a realistic clinical skin/lesion inspection test pattern when
+        no physical USB/CSI webcam is plugged into the kiosk.
+        Displays dermal background with localized erythema/rash and calibration crosshairs.
+        """
         img_array = np.zeros((self.target_height, self.target_width, 3), dtype=np.uint8)
-        # Gradient background
-        for y in range(self.target_height):
-            img_array[y, :, :] = [15, int(23 + y * 0.05), int(42 + y * 0.1)]
+        # Natural warm dermal background base
+        img_array[:, :, 0] = 224  # R
+        img_array[:, :, 1] = 188  # G
+        img_array[:, :, 2] = 168  # B
+
+        # Draw central erythematous rash patch (dermal redness)
+        cy, cx = self.target_height // 2, self.target_width // 2
+        y, x = np.ogrid[:self.target_height, :self.target_width]
+        dist_from_center = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+
+        # Gradient redness mask
+        mask = np.clip(1.0 - (dist_from_center / 110.0), 0.0, 1.0)
+        img_array[:, :, 0] = np.clip(img_array[:, :, 0] + (mask * 45), 0, 255).astype(np.uint8)
+        img_array[:, :, 1] = np.clip(img_array[:, :, 1] - (mask * 55), 0, 255).astype(np.uint8)
+        img_array[:, :, 2] = np.clip(img_array[:, :, 2] - (mask * 55), 0, 255).astype(np.uint8)
+
+        # Draw subtle crosshairs and border
+        try:
+            if HAS_OPENCV:
+                cv2.circle(img_array, (cx, cy), 110, (180, 80, 80), 2)
+                cv2.line(img_array, (cx - 20, cy), (cx + 20, cy), (140, 60, 60), 1)
+                cv2.line(img_array, (cx, cy - 20), (cx, cy + 20), (140, 60, 60), 1)
+                cv2.putText(
+                    img_array, "AVERA Clinical Inspection Area",
+                    (18, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (90, 40, 40), 2
+                )
+                cv2.putText(
+                    img_array, "Offline Visual Calibration Sample: Skin Lesion / Rash",
+                    (18, self.target_height - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (100, 50, 50), 1
+                )
+        except Exception:
+            pass
+
         return Image.fromarray(img_array)
 
     def close(self):

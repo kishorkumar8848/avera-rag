@@ -469,8 +469,362 @@ MAJOR_CLINICAL_PROTOCOLS: List[ClinicalProtocol] = [
             "hi": "यदि गर्दन में अकड़न, चेहरे में कमजोरी या अचानक तेज सिरदर्द हो तो बिना देरी आपातकालीन अस्पताल जाएं। बार-बार सिरदर्द होने पर बीपी और आंखों की जांच करवाएं।",
             "gu": "જો ગરદન અકડાઈ જાય કે લકવાના લક્ષણ જણાય તો તાત્કાલિક હોસ્પિટલ પહોંચો. વારંવાર માથું દુખતું હોય તો બ્લડ પ્રેશર અને આંખોની તપાસ કરાવો."
         }
+    ),
+
+    # 6. Skin Rash, Allergic Dermatitis & Superficial Fungal Infection
+    ClinicalProtocol(
+        condition_id="skin_rash_dermatitis",
+        category="Dermatology / Visual Inspection",
+        english_name="Skin Rash, Allergic Dermatitis & Fungal Infection",
+        tamil_name="தோல் அரிப்பு, தடிப்பு மற்றும் பூஞ்சை தொற்று",
+        hindi_name="त्वचा के चकत्ते, एलर्जी और दाद-खुजली",
+        gujarati_name="ચામડી પર ચકામા, ખંજવાળ અને એલર્જી",
+        keywords=[
+            "rash", "skin rash", "itching", "itchy", "redness", "skin allergy", "dermatitis", "eczema", "ringworm", "spots", "hives",
+            "தோல் அரிப்பு", "தடிப்பு", "சிவப்பு தடிப்பு", "அரிப்பு", "படர்தாமரை", "தோல் நோய்", "ஒவ்வாமை",
+            "खुजली", "चकत्ते", "लाल चकत्ते", "दाद", "खाज", "त्वचा एलर्जी", "पित्ती",
+            "ચકામા", "ખંજવાળ", "લાલ ચકામા", "દાદર", "ચામડીની એલર્જી", "ધાબળા"
+        ],
+        summary={
+            "en": "Visual and clinical findings indicate acute skin irritation, allergic dermatitis, or superficial fungal infection. Management focuses on gentle cleansing, soothing topical application, avoiding allergens, and preventing secondary infection.",
+            "ta": "நோயாளிக்கு தோல் அரிப்பு, ஒவ்வாமை அல்லது பூஞ்சைத் தொற்றின் (படர்தாமரை) அறிகுறிகள் உள்ளன. பாதிக்கப்பட்ட இடத்தை சுத்தமாக வைத்திருத்தல், பருத்தி ஆடைகள் அணிதல் மற்றும் சொறிவதைத் தவிர்ப்பது முக்கியம்.",
+            "hi": "लक्षण त्वचा की एलर्जी, लाल चकत्ते या दाद-खाज (फंगल इन्फेक्शन) की ओर संकेत करते हैं। प्रभावित त्वचा को साफ और सूखा रखना, सूती कपड़े पहनना और खुजलाने से बचना आवश्यक है।",
+            "gu": "લક્ષણો ચામડીની એલર્જી, લાલ ચકામા અથવા દાદર દર્શાવે છે. અસરગ્રસ્ત જગ્યાને સાફ અને સૂકી રાખવી, સુતરાઉ કપડાં પહેરવા અને ખંજવાળ ન કરવી જરૂરી છે."
+        },
+        home_care={
+            "en": [
+                "Gently wash the affected skin with clean water and mild soap; pat dry with a clean soft towel (do not rub).",
+                "Apply soothing Calamine lotion or pure coconut oil to relieve itching and skin dryness.",
+                "Wear loose-fitting, breathable cotton clothing to prevent friction and sweat buildup.",
+                "Keep fingernails trimmed short and avoid scratching to prevent secondary bacterial infection.",
+                "Avoid harsh scented soaps, detergents, chemical cosmetics, or sharing personal towels and bedsheets."
+            ],
+            "ta": [
+                "பாதிக்கப்பட்ட பகுதியை சுத்தமான நீர் மற்றும் மென்மையான சோப்பினால் கழுவி, மென்மையான துணியால் ஒற்றி எடுக்கவும் (தேய்க்கக் கூடாது).",
+                "அரிப்பைக் குறைக்க கலாமின் லோஷன் (Calamine lotion) அல்லது தேங்காய் எண்ணெய் மெதுவாகத் தடவலாம்.",
+                "இறுக்கமில்லாத, பருத்தி ஆடைகளை அணியவும்.",
+                "நகங்களை வெட்டி சுத்தமாக வைத்திருக்கவும்; கைகளால் நகத்தைக் கொண்டு சொறிவதைத் தவிர்க்கவும்.",
+                "ரசாயன வாசனை சோப்புகள், பவுடர்கள் பயன்படுத்துவதையும் பிறரின் துண்டுகளைப் பகிர்வதையும் தவிர்க்கவும்."
+            ],
+            "hi": [
+                "प्रभावित त्वचा को सादे पानी और हल्के साबुन से धोएं और साफ तौलिये से थपथपाकर सुखाएं (रगड़ें नहीं)।",
+                "खुजली शांत करने के लिए कैलामाइन लोशन या नारियल तेल लगाएं।",
+                "ढीले और हवादार सूती कपड़े पहनें ताकि पसीना और घर्षण न हो।",
+                "नाखून छोटे रखें और खुजलाने से बचें ताकि संक्रमण न फैले।",
+                "कड़क साबुन, परफ्यूम और दूसरों के कपड़े-तौलिए इस्तेमाल न करें।"
+            ],
+            "gu": [
+                "અસરગ્રસ્ત ભાગને ચોખ્ખા પાણીથી ધોઈને નરમ કપડાથી હળવેથી લૂછો (ઘસવું નહીં).",
+                "ખંજવાળ ઓછી કરવા કેલામાઇન લોશન અથવા શુદ્ધ કોપરેલ તેલ લગાવો.",
+                "ઢીલા અને સુતરાઉ કપડાં પહેરો.",
+                "નખ ટૂંકા રાખો અને ખંજવાળવાનું ટાળો જેથી ચેપ ન વધે.",
+                "તીવ્ર કેમિકલવાળા સાબુ અને અન્યની વસ્તુઓ વાપરવાનું ટાળો."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Rapidly spreading redness accompanied by local heat, extreme pain, or high fever (suspected cellulitis).",
+                "Formation of extensive blisters, peeling skin, or open oozing yellow crusts (secondary bacterial impetigo).",
+                "Sudden swelling of lips, eyelids, face, or throat with difficulty breathing (severe allergic anaphylaxis).",
+                "Rash covering more than 30% of total body surface area.",
+                "No improvement or worsening after 5 days of conservative care."
+            ],
+            "ta": [
+                "தோல் சிவத்தல் வேகமாக பரவுதல், அதிக வலி, சூடு அல்லது காய்ச்சல் ஏற்படுதல் (செல்லுலைடிஸ் அறிகுறி).",
+                "தோலில் சீழ் கொப்புளங்கள், மஞ்சள் நிற கசிவு அல்லது தோல் உரிதல் ஏற்படுதல்.",
+                "உதடு, கண் இமைகள், முகம் வீங்குதல் அல்லது திடீர் மூச்சுத்திணறல் (தீவிர ஒவ்வாமை/அனாபிலாக்சிஸ்).",
+                "உடலின் பெரும்பாலான பகுதிகளில் தடிப்பு பரவுதல்.",
+                "5 நாட்களுக்கு மேலாகியும் குணமாகாமல் தீவிரமடைதல்."
+            ],
+            "hi": [
+                "लालिमा का तेजी से फैलना, बहुत तेज दर्द, त्वचा का गर्म होना या बुखार आना (सेल्युलाइटिस)।",
+                "त्वचा पर बड़े छाले, पीप वाले दाने या पीली पपड़ी जमना।",
+                "होंठ, पलकें या चेहरे पर सूजन और सांस लेने में कठिनाई (गंभीर एलर्जी/एनाफिलेक्सिस)।",
+                "शरीर के 30% से अधिक हिस्से पर चकत्तों का फैलना।",
+                "5 दिनों तक घरेलू देखभाल के बाद भी सुधार न होना।"
+            ],
+            "gu": [
+                "લાલાશ ઝડપથી ફેલાવી, સખત દુખાવો અથવા તાવ આવવો.",
+                "મોટા ફોલ્લા થવા અથવા પરુવાળા દાણા થવા.",
+                "હોઠ, આંખો અથવા ચહેરા પર સોજો અને શ્વાસ લેવામાં તકલીફ.",
+                "શરીરના મોટા ભાગ પર ચકામા ફેલાઈ જવા.",
+                "5 દિવસ સુધી કોઈ સુધારો ન થવો."
+            ]
+        },
+        referral_guidance={
+            "en": "Refer to the Primary Health Centre (PHC) medical officer for clinical diagnosis, identification of underlying fungal/allergic etiology, and prescription of appropriate topical antifungal (Clotrimazole) or oral antihistamine (Cetirizine). If facial swelling or breathing difficulty occurs, transfer immediately to an emergency facility.",
+            "ta": "பூஞ்சை அல்லது ஒவ்வாமைக்கான சரியான களிம்பு (Clotrimazole) அல்லது மாத்திரைகளைப் பெற ஆரம்ப சுகாதார நிலைய (PHC) மருத்துவரை அணுகவும். மூச்சுத்திணறல் அல்லது முக வீக்கம் இருந்தால் உடனே அவசர மருத்துவ உதவி பெறவும்.",
+            "hi": "सही जांच और फंगल क्रीम (क्लोट्रिमेज़ोल) या एलर्जी की दवा के लिए प्राथमिक स्वास्थ्य केंद्र (PHC) के डॉक्टर से संपर्क करें। चेहरे पर सूजन या सांस फूलने पर तुरंत आपातकालीन केंद्र ले जाएं।",
+            "gu": "યોગ્ય મલમ અથવા એલર્જીની દવા માટે નજીકના પીએચસી ડૉક્ટર પાસે તપાસ કરાવો. જો શ્વાસ લેવામાં તકલીફ જણાય તો તાત્કાલિક હોસ્પિટલ પહોંચો."
+        }
+    ),
+
+    # 7. Minor Wounds, Cuts, Scrapes & Superficial Burns
+    ClinicalProtocol(
+        condition_id="minor_wounds_burns",
+        category="Trauma / Wound Care",
+        english_name="Minor Cuts, Abrasions, Wounds & Superficial Burns",
+        tamil_name="சிறு காயங்கள், வெட்டுக்காயம் மற்றும் தீக்காயம்",
+        hindi_name="छोटे घाव, खरोंच, चोट और सतही जलना",
+        gujarati_name="નાના ઘા, છોલાવું, વાગવું અને સામાન્ય દાઝવું",
+        keywords=[
+            "wound", "cut", "scrape", "scratch", "abrasion", "laceration", "burns", "skin burn", "scald", "blister", "bleeding", "skin cut",
+            "காயம்", "வெட்டுக் காயம்", "சிராய்ப்பு", "தீக்காயம்", "புண்", "ரத்தக்கசிவு", "கொப்புளம்",
+            "घाव", "चोट", "कटना", "छिलना", "जलना", "छाला", "खून बहना", "खरोंच",
+            "ઘા", "વાગવું", "છોલાવું", "દાઝવું", "લોહી નીકળવું", "ફોલ્લો"
+        ],
+        summary={
+            "en": "Visual features show a localized cut, scrape, superficial wound, or minor burn. First priority is hemorrhage control, thorough saline/water wound irrigation, infection prevention with sterile dressing, and screening for Tetanus Toxoid (TT) vaccination.",
+            "ta": "நோயாளிக்கு மேலோட்டமான வெட்டுக் காயம், சிராய்ப்பு அல்லது சிறிய தீக்காயம் ஏற்பட்டுள்ளது. ரத்தப்போக்கைக் கட்டுப்படுத்துதல், சுத்தமான நீரால் கழுவுதல், கிருமிநாசினி மருந்து வைத்து கட்டுப்போடுதல் மற்றும் டெட்டனஸ் (TT) ஊசி போடுவது அவசியம்.",
+            "hi": "मरीज को हल्की चोट, खरोंच, घाव या सामान्य रूप से जलने की समस्या है। सबसे पहले खून रोकना, साफ पानी से धोना, रोगाणुरोधी मरहम लगाना और टिटनेस (TT) इंजेक्शन की जरूरत देखना आवश्यक है।",
+            "gu": "દર્દીને સામાન્ય ઘા, છોલાવું કે સામાન્ય દાઝવાની તકલીફ છે. પ્રાથમિક સારવારમાં લોહી બંધ કરવું, ચોખ્ખા પાણીથી ધોવું, પાટો બાંધવો અને ટિટનેસ (ધનુર) ના ઈન્જેક્શનની તપાસ કરવી જરૂરી છે."
+        },
+        home_care={
+            "en": [
+                "For cuts/wounds: Apply direct gentle pressure with a clean cloth or sterile gauze for 3-5 minutes to control minor bleeding.",
+                "Rinse the wound thoroughly under clean running tap water for 5 minutes to wash away dirt and debris. Avoid harsh spirit directly in deep open cuts.",
+                "Apply thin layer of Povidone-Iodine (5%) or topical antibiotic ointment and cover with sterile dry gauze.",
+                "For minor burns: Immediately hold under cool running tap water for 10-15 minutes. NEVER apply ice, toothpaste, turmeric, mud, or butter.",
+                "Do NOT intentionally pop burn blisters, as the intact skin blister acts as a natural sterile barrier against infection."
+            ],
+            "ta": [
+                "ரத்தப்போக்கு இருந்தால் சுத்தமான துணியை வைத்து 3-5 நிமிடங்கள் மிதமான அழுத்தம் கொடுத்து ரத்தத்தை நிறுத்தவும்.",
+                "காயத்தில் உள்ள தூசிகளை அகற்ற சுத்தமான ஓடும் தண்ணீரில் 5 நிமிடங்கள் நன்கு கழுவவும். ஆழமான காயத்தில் நேரடியாக ஸ்பிரிட் ஊற்ற வேண்டாம்.",
+                "பொவிடோன் அயோடின் (Povidone-Iodine) அல்லது ஆன்டிசெப்டிக் களிம்பு தடவி சுத்தமான பஞ்சு அல்லது துணியால் கட்டுப்போடவும்.",
+                "தீக்காயங்களுக்கு: உடனடியாக 10-15 நிமிடங்கள் குளிர்ந்த ஓடும் தண்ணீரில் காட்டவும். ஐஸ் கட்டி, பற்பசை (toothpaste), அல்லது வெண்ணெய் தடவக் கூடாது.",
+                "தீக்காயக் கொப்புளங்களை ஊசியால் குத்தி உடைக்க வேண்டாம்; அது தொற்று ஏற்படாமல் காக்கும் இயற்கை கவசம்."
+            ],
+            "hi": [
+                "खून बहने पर साफ कपड़े या पट्टी से 3-5 मिनट तक सीधा हल्का दबाव बनाएं।",
+                "घाव को बहते साफ पानी से 5 मिनट तक अच्छी तरह धोएं ताकि धूल-मिट्टी निकल जाए। गहरे घाव में सीधा स्पिरिट न डालें।",
+                "पोविडोन-आयोडीन (Povidone-Iodine) या एंटीसेप्टिक मरहम लगाएं और साफ सूती पट्टी बांधें।",
+                "जलने पर: तुरंत 10-15 मिनट तक नल के ठंडे पानी में रखें। कभी भी बर्फ, टूथपेस्ट या हल्दी न लगाएं।",
+                "जलने के छालों (ब्लिस्टर्स) को कभी न फोड़ें; यह संक्रमण से बचाने वाली प्राकृतिक परत है।"
+            ],
+            "gu": [
+                "લોહી નીકળતું હોય તો ચોખ્ખા કપડાથી 3-5 મિનિટ દબાવી રાખો.",
+                "ઘાને નળના વહેતા ચોખ્ખા પાણી નીચે 5 મિનિટ ધોવો જેથી ધૂળ નીકળી જાય.",
+                "પોવિડોન-આયોડિન મલમ લગાવો અને જંતુરહિત પાટો બાંધો.",
+                "દાઝવા પર: તરત જ 10-15 મિનિટ સામાન્ય વહેતા પાણીમાં રાખો. ક્યારેય બરફ કે ટૂથપેસ્ટ ન લગાવવી.",
+                "દાઝેલા ફોલ્લાને ક્યારેય ફોડવા નહીં."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Arterial spurting blood or persistent bleeding not controlled after 10 minutes of continuous direct pressure.",
+                "Deep puncture wound (from rusty nail, metal, animal bite, or glass) requiring urgent Tetanus Toxoid (TT) vaccination.",
+                "Inability to move the injured limb, numbness, tingling, or loss of sensation distal to the cut.",
+                "Wound showing signs of secondary infection after 24-48 hours: increasing throbbing pain, warmth, foul smell, or yellowish pus.",
+                "Burn involving the face, hands, feet, joints, genitalia, or electrical/chemical burns."
+            ],
+            "ta": [
+                "10 நிமிட அழுத்தத்திற்குப் பிறகும் நிற்காத தொடர் ரத்தப்போக்கு.",
+                "துருப்பிடித்த ஆணி, கம்பி, கண்ணாடி அல்லது விலங்கு கடியால் ஏற்பட்ட ஆழமான காயம் (உடனடி டெட்டனஸ் TT ஊசி தேவை).",
+                "காயம் பட்ட கை அல்லது கால்களை அசைக்க முடியாமல் போவது அல்லது மரத்துப்போவது.",
+                "24-48 மணி நேரத்திற்குப் பின் காயத்தில் தாங்க முடியாத வலி, வீக்கம், துர்நாற்றம் அல்லது சீழ் வடிதல்.",
+                "முகம், கை, பாதம், மூட்டுகள் அல்லது பிறப்புறுப்பில் ஏற்பட்ட தீக்காயங்கள்."
+            ],
+            "hi": [
+                "लगातार 10 मिनट दबाने के बाद भी खून का न रुकना या फव्वारे की तरह निकलना।",
+                "जंग लगी कील, शीशा या जानवर के काटने से हुआ गहरा घाव (टिटनेस TT का टीका जरूरी)।",
+                "चोट वाले अंग का सुन्न पड़ना या हिलाने में असमर्थता।",
+                "घाव में 24 घंटे बाद तेज टीस, बदबू या पीप आना (गंभीर संक्रमण)।",
+                "चेहरे, हाथ, पैर या जोड़ों पर गहरा जलना।"
+            ],
+            "gu": [
+                "10 મિનિટ દબાવ્યા પછી પણ લોહી બંધ ન થવું.",
+                "કાટવાળી ખીલી, કાચ કે જાનવર કરડવાથી થયેલો ઊંડો ઘા (ટિટનેસ ઇન્જેક્શન જરૂરી).",
+                "અંગ સુન્ન થઈ જવું કે હલનચલન ન થવું.",
+                "ઘામાંથી પરુ નીકળવું અથવા અસહ્ય દુખાવો થવો.",
+                "ચહેરા કે હાથ-પગ પર ગંભીર દાઝવું."
+            ]
+        },
+        referral_guidance={
+            "en": "Visit the nearest Primary Health Centre (PHC) within 24 hours for evaluation of wound closure (suturing if wound edges are gapped >0.5cm), Tetanus Toxoid (TT) booster verification (if last dose was >5 years ago), and sterile dressing renewal.",
+            "ta": "தையல் போட வேண்டிய ஆழமான காயங்கள் மற்றும் டெட்டனஸ் (TT) தடுப்பூசி போட்டுக்கொள்ள உடனடியாக ஆரம்ப சுகாதார நிலையத்தை (PHC) அணுகவும்.",
+            "hi": "गहरे घाव में टांके लगाने और टिटनेस (TT) इंजेक्शन लगवाने के लिए 24 घंटे के भीतर नजदीकी प्राथमिक स्वास्थ्य केंद्र (PHC) जाएं।",
+            "gu": "ટાંકા લેવા પડે તેવા ઊંડા ઘા અને ધનુર (TT) ના ઈન્જેક્શન માટે 24 કલાકમાં નજીકના પીએચસી પર જાઓ."
+        }
+    ),
+
+    # 8. Acute Conjunctivitis & Red Eye Infection (Pink Eye)
+    ClinicalProtocol(
+        condition_id="acute_conjunctivitis",
+        category="Ophthalmology / Visual Inspection",
+        english_name="Acute Conjunctivitis & Red Eye (Pink Eye)",
+        tamil_name="கண் சிவப்பு மற்றும் கண் தொற்று (மெட்ராஸ் ஐ)",
+        hindi_name="आँख आना, लाल आँख और आँख का संक्रमण",
+        gujarati_name="લાલ આંખ, આંખ આવવી અને નેત્રસ્તર દાહ",
+        keywords=[
+            "eye", "eyes", "red eye", "red eyes", "pink eye", "pink eyes", "conjunctivitis", "eye discharge", "watery eye", "watery eyes",
+            "sticky eye", "sticky eyes", "eye burning", "eyes burning", "madras eye", "eye infection", "eyes red", "eye redness", "discharge",
+            "கண்", "கண்கள்", "கண் சிவப்பு", "கண் வலி", "கண் தொற்று", "கண் நீர் வடிதல்", "மெட்ராஸ் ஐ", "கண் எரிச்சல்", "கண் பீளை",
+            "आँख", "आँखों", "आँख आना", "आँख लाल", "आँख से पानी", "आँखों में जलन", "आँख चिपकना", "आँख में कीचड़",
+            "આંખ", "લાલ આંખ", "આંખ આવવી", "આંખમાં બળતરા", "આંખમાંથી પાણી", "આંખ ચોંટવી"
+        ],
+        summary={
+            "en": "Clinical presentation aligns with acute infectious or allergic conjunctivitis ('Pink Eye'). Standard care consists of cold saline eyelid cleansing, personal hygiene isolation, resting eyes, and strictly avoiding unprescribed steroid eye drops.",
+            "ta": "நோயாளிக்கு கண் சிவப்பு மற்றும் கண் தொற்றின் (மெட்ராஸ் ஐ) அறிகுறிகள் உள்ளன. சுத்தமான நீரால் கண்களைக் கழுவுதல், தனித் துண்டு பயன்படுத்துதல் மற்றும் மருத்துவர் பரிந்துரையின்றி கடைகளில் கண் சொட்டு மருந்து வாங்குவதைத் தவிர்ப்பது முக்கியம்.",
+            "hi": "मरीज में आँख आने (कंजंक्टिवाइटिस/गुलाबी आँख) के लक्षण हैं। सादे ठंडे पानी से पलकें साफ करना, अलग तौलिया रखना और बिना डॉक्टर सलाह कोई भी आई ड्रॉप न डालना आवश्यक है।",
+            "gu": "દર્દીમાં આંખ આવવાના (લાલ આંખ) લક્ષણો છે. ઠંડા પાણીથી આંખો સાફ કરવી, અલગ રૂમાલ રાખવો અને ડૉક્ટરની સલાહ વગર કોઈ પણ આઈ ડ્રોપ્સ ન વાપરવા."
+        },
+        home_care={
+            "en": [
+                "Clean the crusting around eyelids using a clean cotton ball soaked in boiled, cooled water or normal saline, wiping from inner to outer corner. Use a separate cotton ball for each eye.",
+                "Apply cold compresses (clean cloth dampened with cool water) over closed eyelids for 5-10 minutes to soothe burning and swelling.",
+                "Wash hands thoroughly with soap and water before and after touching the face.",
+                "Do NOT share towels, handkerchiefs, pillows, or eye drops with family members to prevent viral transmission.",
+                "Wear dark protective sunglasses outdoors to reduce glare/light sensitivity and avoid eye rubbing."
+            ],
+            "ta": [
+                "காய்ச்சி ஆறவைத்த நீரில் நனைத்த பஞ்சு கொண்டு இமைகளில் உள்ள பீளையை உள்பக்கமிருந்து வெளிப்பக்கமாக மெதுவாகத் துடைக்கவும். இரண்டு கண்களுக்கும் தனித்தனி பஞ்சு பயன்படுத்தவும்.",
+                "கண்களை மூடிய நிலையில் குளிர்ந்த நீரில் நனைத்த சுத்தமான துணியை 5-10 நிமிடங்கள் ஒத்தடம் கொடுக்கவும்.",
+                "கண்களைத் தொடுவதற்கு முன்னும் பின்னும் சோப்பு போட்டு கைகளை சுத்தமாகக் கழுவவும்.",
+                "துண்டு, தலையணை, கைக்குட்டைகளை குடும்பத்தினருடன் பகிரக் கூடாது.",
+                "வெளியில் செல்லும்போது கூலிங்கிளாஸ் (கருப்பு கண்ணாடி) அணியவும்; கண்களை கசக்கக் கூடாது."
+            ],
+            "hi": [
+                "उबले और ठंडे पानी में भीगी साफ रुई से पलकों का कीचड़ अंदर से बाहर की ओर पोंछें। दोनों आंखों के लिए अलग रुई इस्तेमाल करें।",
+                "आंखें बंद करके ठंडे पानी की साफ पट्टी 5-10 मिनट रखें ताकि जलन और सूजन कम हो।",
+                "आंखों को छूने से पहले और बाद में साबुन से हाथ धोएं।",
+                "अपना तौलिया, तकिया और रुमाल दूसरों से बिल्कुल अलग रखें।",
+                "धूप में काला चश्मा पहनें और आंखों को रगड़ें नहीं।"
+            ],
+            "gu": [
+                "ઉકાળીને ઠંડા કરેલા પાણીમાં રૂ બોળીને આંખો અંદરથી બહારની તરફ સાફ કરો. બંને આંખ માટે અલગ રૂ વાપરો.",
+                "બંધ આંખો પર ઠંડા પાણીની પટ્ટી 5-10 મિનિટ મૂકો.",
+                "હાથ વારંવાર સાબુથી ધોવા.",
+                "રૂમાલ અને તકિયો અલગ રાખવો.",
+                "બહાર જતી વખતે કાળો ચશ્મો પહેરવો અને આંખ ચોળવી નહીં."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Severe, deep, throbbing ocular pain or feeling of sharp foreign object in eye.",
+                "Noticeable decrease in vision, blurring, or seeing colored halos around lights.",
+                "Extreme sensitivity to light (photophobia) preventing opening of the eye.",
+                "Cloudiness or white/opaque spot on the cornea (black part of the eye).",
+                "Unequal pupil size or pupil unresponsive to light."
+            ],
+            "ta": [
+                "தாங்க முடியாத கடுமையான கண் வலி அல்லது கண்ணுக்குள் ஏதோ குத்துவது போன்ற உணர்வு.",
+                "பார்வை மங்குதல் அல்லது வெளிச்சத்தைச் சுற்றி வளையங்கள் தெரிதல்.",
+                "வெளிச்சத்தைப் பார்க்கவே முடியாத அதீத கூச்ச உணர்வு.",
+                "கருவிழியில் (cornea) வெள்ளை நிற புள்ளி அல்லது மங்கலான நிலை ஏற்படுதல்.",
+                "கண் பாப்பாவின் அளவில் மாற்றம் ஏற்படுதல்."
+            ],
+            "hi": [
+                "आंख में असहनीय तेज दर्द या कुछ चुभने का गंभीर अहसास।",
+                "दिखाई देने में कमी, धुंधलापन या रोशनी के आसपास घेरे दिखना।",
+                "रोशनी से इतनी परेशानी कि आंख खोलना असंभव हो।",
+                "पुतली (काले हिस्से) पर सफेद धब्बा या धुंधलापन आना।",
+                "दोनों आंखों की पुतलियों के आकार में अंतर होना।"
+            ],
+            "gu": [
+                "આંખમાં અસહ્ય તીવ્ર દુખાવો થવો.",
+                "દ્રષ્ટિ ઓછી થવી અથવા ઝાંખપ આવવી.",
+                "પ્રકાશ સહન ન થવો.",
+                "કીકી પર સફેદ ડાઘ કે ઝાંખપ દેખાવી.",
+                "કીકીના કદમાં ફેરફાર થવો."
+            ]
+        },
+        referral_guidance={
+            "en": "Prompt clinical evaluation by a PHC medical officer or ophthalmologist is required to distinguish bacterial from viral etiology and prescribe verified antibiotic eye drops (e.g., Ciprofloxacin / Moxifloxacin). NEVER use steroid combination drops without direct slit-lamp examination.",
+            "ta": "சரியான கண் சொட்டு மருந்து பெற ஆரம்ப சுகாதார நிலைய மருத்துவரை அணுகவும். மருத்துவர் ஆலோசனையின்றி மருந்தகங்களில் தானாக ஸ்டீராய்டு சொட்டு மருந்துகளை ஒருபோதும் வாங்கிப் பயன்படுத்தக் கூடாது.",
+            "hi": "सही एंटीबायोटिक आई ड्रॉप्स के लिए प्राथमिक स्वास्थ्य केंद्र (PHC) के डॉक्टर या नेत्र विशेषज्ञ को दिखाएं। बिना डॉक्टर पर्ची के कभी भी स्टेरॉयड वाली ड्रॉप्स न डालें।",
+            "gu": "યોગ્ય એન્ટિબાયોટિક ડ્રોપ્સ માટે પીએચસી ડૉક્ટર કે આંખના નિષ્ણાત પાસે તપાસ કરાવો. ડૉક્ટરની સલાહ વિના જાતે ટીપાં ન નાખવા."
+        }
+    ),
+
+    # 9. Insect Bites, Stings & Localized Skin Abscess / Furuncle
+    ClinicalProtocol(
+        condition_id="insect_bite_abscess",
+        category="Dermatology / Local Infection",
+        english_name="Insect Bites, Stings & Localized Skin Abscess",
+        tamil_name="பூச்சி கடி, வீக்கம் மற்றும் தோல் கட்டி",
+        hindi_name="कीड़ा काटना, डंक और त्वचा का फोड़ा-फुंसी",
+        gujarati_name="કીડા-મધમાખીનો ડંખ અને ચામડી પર ગૂમડું",
+        keywords=[
+            "insect bite", "bug bite", "bee sting", "wasp sting", "spider bite", "boil", "abscess", "furuncle", "swelling", "bump",
+            "பூச்சி கடி", "குளவி கொட்டு", "தேனீ கொட்டு", "வீக்கம்", "கட்டி", "கொப்புளம்", "பிளவை",
+            "कीड़ा काटना", "डंक", "मधुमक्खी", "सूजन", "फोड़ा", "फुंसी", "गांठ",
+            "કીડાનો ડંખ", "મધમાખી", "ડંખ", "સોજો", "ગૂમડું", "ફોલ્લો", "ગાંઠ"
+        ],
+        summary={
+            "en": "Presentation shows localized tissue reaction from an insect bite/sting or a localized cutaneous abscess (boil). First-line care includes cold compress, gentle elevation, sting removal, and warm moist heat for abscesses. Squeezing or popping must be strictly avoided.",
+            "ta": "நோயாளிக்கு பூச்சி கடி, கொட்டுதல் அல்லது தோலில் சீழ் கட்டியின் அறிகுறிகள் உள்ளன. ஐஸ் ஒத்தடம் கொடுத்தல், சுத்தமாக வைத்திருத்தல் மற்றும் கட்டியை அழுத்திப் பிதுக்குவதைத் தவிர்ப்பது அவசியமான முதலுதவி.",
+            "hi": "मरीज को कीड़ा काटने, डंक या त्वचा पर फोड़ा-फुंसी (एब्सेस) की समस्या है। बर्फ की सिकाई, सफाई और फोड़े को दबाकर न फोड़ना प्राथमिक उपचार है।",
+            "gu": "દર્દીને કીડાનો ડંખ અથવા ચામડી પર ગૂમડાંની તકલીફ છે. બરફનો શેક કરવો અને ગૂમડાંને દબાવીને ફોડવું નહીં તે મુખ્ય સંભાળ છે."
+        },
+        home_care={
+            "en": [
+                "For insect stings: Gently scrape away visible stinger with a blunt edge (e.g., edge of a card). Do not squeeze with tweezers.",
+                "Wash the bite area thoroughly with soap and water.",
+                "Apply an ice pack wrapped in a clean cloth for 10-15 minutes every hour to reduce local pain and swelling.",
+                "Apply Calamine lotion or a paste of baking soda and water to alleviate itching and pain.",
+                "For skin boils/abscesses: Apply a clean warm, moist compress for 10-15 minutes 3-4 times daily to promote natural circulation. NEVER squeeze, press, or pierce a boil."
+            ],
+            "ta": [
+                "கொட்டிய விஷ முள் தெரிந்தால் நகம் அல்லது அட்டை கொண்டு மெதுவாக சுரண்டி எடுக்கவும்; இடுக்கிகளால் பிதுக்க வேண்டாம்.",
+                "கடித்த இடத்தை சோப்பு மற்றும் தண்ணீரால் சுத்தமாகக் கழுவவும்.",
+                "வீக்கம் மற்றும் வலியைக் குறைக்க துணியில் சுற்றிய ஐஸ் கட்டியை 10-15 நிமிடங்கள் ஒத்தடம் கொடுக்கவும்.",
+                "அரிப்பு குறைய கலாமின் லோஷன் தடவலாம்.",
+                "கட்டிகளுக்கு: சுடுநீரில் நனைத்த துணியால் தினமும் 3-4 முறை வெதுவெதுப்பான ஒத்தடம் கொடுக்கவும். கட்டியை ஒருபோதும் கையால் பிதுக்கக் கூடாது."
+            ],
+            "hi": [
+                "यदि डंक दिख रहा हो तो किसी कार्ड के किनारे से खुरच कर निकालें; चिमटी से दबाकर न खींचें।",
+                "प्रभावित जगह को साबुन और पानी से अच्छी तरह धोएं।",
+                "दर्द और सूजन कम करने के लिए कपड़े में लपेटकर बर्फ की 10-15 मिनट सिकाई करें।",
+                "खुजली शांत करने के लिए कैलामाइन लोशन लगाएं।",
+                "फोड़े-फुंसी के लिए: दिन में 3-4 बार गर्म पानी की गीली पट्टी रखें ताकि स्वाभाविक रूप से आराम मिले। फोड़े को कभी दबाकर न फोड़ें।"
+            ],
+            "gu": [
+                "ડંખ દેખાતો હોય તો કાર્ડની ધારથી હળવેથી કાઢી લો; દબાવવું નહીં.",
+                "જગ્યાને સાબુ અને પાણીથી બરાબર ધોઈ લો.",
+                "સોજો અને દુખાવો ઘટાડવા કપડામાં બરફ લપેટીને 10-15 મિનિટ શેક કરો.",
+                "ખંજવાળ માટે કેલામાઇન લોશન લગાવો.",
+                "ગૂમડાં માટે: દિવસમાં 3-4 વાર ગરમ પાણીનો શેક કરવો. ગૂમડાંને ક્યારેય દબાવવું નહીં."
+            ]
+        },
+        warning_signs={
+            "en": [
+                "Systemic allergic reaction (Anaphylaxis): sudden difficulty breathing, throat constriction, wheezing, swelling of tongue/lips, or fainting.",
+                "Bite from a known venomous snake, scorpion, or spider requiring emergency antiserum.",
+                "Rapidly expanding red streak spreading upward from the bite site (lymphangitis).",
+                "Abscess larger than 5cm, extremely hard, throbbing intensely, or accompanied by high fever >101°F.",
+                "Boils located on the central face ('danger triangle of the face' between nose and upper lip)."
+            ],
+            "ta": [
+                "திடீர் மூச்சுத்திணறல், நாக்கு/தொண்டை வீங்குதல், குரல் மாறுதல் அல்லது மயக்கம் (தீவிர அனாபிலாக்சிஸ் எச்சரிக்கை).",
+                "விஷப் பாம்பு, தேள் அல்லது விஷப் பூச்சி கடித்திருந்தால் (உடனடி முறி மருந்து தேவை).",
+                "கடித்த இடத்திலிருந்து சிவப்பு கோடு போல் நரம்பு வழியாக வேகமாக மேல்நோக்கிப் பரவுதல்.",
+                "கட்டி 5 செ.மீ விட பெரியதாக இருத்தல், தாங்க முடியாத வலி அல்லது அதிக காய்ச்சல் ஏற்படுதல்.",
+                "மூக்கு மற்றும் மேல் உதட்டுக்கு இடைப்பட்ட ஆபத்தான முக்கோணப் பகுதியில் உள்ள கட்டிகள்."
+            ],
+            "hi": [
+                "सांस लेने में भारी तकलीफ, गले में घुटन, होंठ-जीभ में सूजन या बेहोशी (एनाफिलेक्सिस आपातकाल)।",
+                "जहरीले सांप, बिच्छू या मकड़ी का काटना (तुरंत एंटी-वेनम की जरूरत)।",
+                "डंक वाली जगह से ऊपर की ओर लाल लकीर का तेजी से बढ़ना।",
+                "फोड़ा 5 सेमी से बड़ा होना, बहुत तेज टीस मारना या तेज बुखार आना।",
+                "नाक और ऊपरी होंठ के बीच के चेहरे के संवेदनशील हिस्से पर फोड़ा होना।"
+            ],
+            "gu": [
+                "શ્વાસ લેવામાં તકલીફ, ગળું રુંધાવું, હોઠ-જીભ પર સોજો અથવા બેભાન થવું.",
+                "ઝેરી સાપ કે વીંછીનો ડંખ.",
+                "ડંખવાળી જગ્યાએથી લાલ રેખા આગળ વધવી.",
+                "ગૂમડું ઘણું મોટું થવું અથવા સખત તાવ આવવો.",
+                "ચહેરા પર નાક અને હોઠ વચ્ચે ગૂમડું થવું."
+            ]
+        },
+        referral_guidance={
+            "en": "EMERGENCY: If any signs of systemic allergy (breathing distress, facial swelling) occur, call 108 or transfer immediately to hospital for intramuscular Epinephrine. For large fluctuating abscesses, refer to PHC for minor surgical incision and drainage (I&D) under local anesthesia.",
+            "ta": "மூச்சுத்திணறல் அல்லது முக வீக்கம் இருந்தால் உடனடியாக 108 அவசர ஊர்தியை அழைத்து மருத்துவமனைக்குச் செல்லவும். பெரிய சீழ் கட்டிகளுக்கு ஆரம்ப சுகாதார நிலையத்தில் சிறு அறுவை சிகிச்சை மூலம் சீழை அகற்ற வேண்டும்.",
+            "hi": "यदि सांस लेने में तकलीफ या चेहरे पर सूजन हो तो तुरंत 108 पर कॉल करें या आपातकालीन अस्पताल जाएं। बड़े फोड़े के लिए पीएचसी जाकर डॉक्टर से सफाई करवाएं।",
+            "gu": "જો શ્વાસ લેવામાં તકલીફ થાય તો તાત્કાલિક 108 બોલાવો. મોટા ગૂમડાં માટે પીએચસી પર જઈને ડૉક્ટરની સલાહ મુજબ સારવાર કરાવો."
+        }
     )
 ]
+
 
 
 # -----------------------------------------------------------------------------
@@ -502,9 +856,15 @@ def lookup_clinical_protocol(
     for protocol in MAJOR_CLINICAL_PROTOCOLS:
         score = 0
         for kw in protocol.keywords:
-            if kw.lower() in clean_q:
-                # Give higher weight to multi-word phrases
-                score += len(kw.split())
+            kw_low = kw.lower().strip()
+            if len(kw_low.split()) == 1 and len(kw_low) <= 4 and kw_low.isascii():
+                # Word boundary match for short ASCII words like 'cut', 'burn', 'eye'
+                if re.search(rf"\b{re.escape(kw_low)}\b", clean_q):
+                    score += 1
+            else:
+                if kw_low in clean_q:
+                    # Give higher weight to multi-word phrases
+                    score += len(kw_low.split())
 
         if score > highest_score:
             highest_score = score

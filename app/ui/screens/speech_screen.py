@@ -184,13 +184,13 @@ class SpeechScreen(QWidget if HAS_QT else object):
         # 1. Header Info Row
         header_layout = QHBoxLayout()
         self.title_label = QLabel("Speech Clinical Assistant")
-        self.title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #00E8C6;")
+        self.title_label.setStyleSheet("font-size: 22px; font-weight: 800; color: #0F172A;")
         header_layout.addWidget(self.title_label)
 
         header_layout.addStretch()
 
         self.lang_badge = QLabel(f"Language: {self.active_language.upper()}")
-        self.lang_badge.setStyleSheet("font-size: 14px; color: #94A3B8; background: #1C2541; padding: 4px 10px; border-radius: 6px;")
+        self.lang_badge.setStyleSheet("font-size: 14px; font-weight: 600; color: #1D4ED8; background: #EFF6FF; padding: 6px 12px; border-radius: 8px;")
         header_layout.addWidget(self.lang_badge)
 
         layout.addLayout(header_layout)
@@ -238,7 +238,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         # Welcome Placeholder
         self.placeholder_label = QLabel(self._get_placeholder_text())
         self.placeholder_label.setAlignment(Qt.AlignCenter)
-        self.placeholder_label.setStyleSheet("font-size: 18px; color: #94A3B8; padding: 30px;")
+        self.placeholder_label.setStyleSheet("font-size: 17px; color: #64748B; padding: 30px; line-height: 1.5;")
         self.placeholder_label.setWordWrap(True)
         self.results_layout.addWidget(self.placeholder_label)
 
@@ -248,7 +248,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         # 5. Live Status & Indicator
         status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready to listen")
-        self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #00E8C6;")
+        self.status_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #2563EB;")
         status_layout.addWidget(self.status_label)
 
         status_layout.addStretch()
@@ -489,24 +489,24 @@ class SpeechScreen(QWidget if HAS_QT else object):
         actions = res.get("recommended_actions", [])
         if actions:
             act_header = QLabel(lbls["actions"])
-            act_header.setStyleSheet("font-size: 16px; font-weight: bold; color: #38BDF8; margin-top: 8px;")
+            act_header.setStyleSheet("font-size: 16px; font-weight: 700; color: #1D4ED8; margin-top: 8px;")
             s_layout.addWidget(act_header)
             for act in actions:
                 a_lbl = QLabel(f"• {act}")
                 a_lbl.setWordWrap(True)
-                a_lbl.setStyleSheet("color: #E2E8F0; font-size: 15px;")
+                a_lbl.setStyleSheet("color: #1E293B; font-size: 15px; line-height: 1.4;")
                 s_layout.addWidget(a_lbl)
 
         # Warning Signs
         warnings = res.get("warning_signs", [])
         if warnings:
             w_header = QLabel(lbls["warnings"])
-            w_header.setStyleSheet("font-size: 16px; font-weight: bold; color: #F59E0B; margin-top: 8px;")
+            w_header.setStyleSheet("font-size: 16px; font-weight: 700; color: #B45309; margin-top: 8px;")
             s_layout.addWidget(w_header)
             for w in warnings:
                 w_lbl = QLabel(f"⚠️ {w}")
                 w_lbl.setWordWrap(True)
-                w_lbl.setStyleSheet("color: #FEF08A; font-size: 15px;")
+                w_lbl.setStyleSheet("color: #92400E; font-size: 15px; font-weight: 600; line-height: 1.4;")
                 s_layout.addWidget(w_lbl)
 
         # Referral Advice
@@ -514,7 +514,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         if referral:
             ref_lbl = QLabel(f"🏥 {lbls['referral']} {referral}")
             ref_lbl.setWordWrap(True)
-            ref_lbl.setStyleSheet("color: #A7F3D0; font-weight: bold; margin-top: 8px; font-size: 15px;")
+            ref_lbl.setStyleSheet("color: #065F46; font-weight: 700; margin-top: 8px; font-size: 15px; background: #ECFDF5; padding: 8px 12px; border-radius: 8px;")
             s_layout.addWidget(ref_lbl)
 
         # Sources Citations

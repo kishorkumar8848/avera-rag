@@ -136,4 +136,60 @@ def test_clinical_protocol_lookup():
     assert len(p_chest["warning_signs"]) > 0
 
 
+def test_clinical_protocol_visual_conditions():
+    from app.safety.clinical_protocols import lookup_clinical_protocol
+
+    # 1. Skin Rash & Dermatitis
+    p_rash = lookup_clinical_protocol("Patient has red itchy skin rash and dermatitis on arm", language="en")
+    assert p_rash is not None
+    assert p_rash["condition_id"] == "skin_rash_dermatitis"
+    assert "rash" in p_rash["summary"].lower() or "skin" in p_rash["summary"].lower()
+    assert len(p_rash["recommended_actions"]) > 0
+
+    # 1b. Skin Rash in Tamil (தோல் அரிப்பு)
+    p_rash_ta = lookup_clinical_protocol("கையில் கடுமையான தோல் அரிப்பு மற்றும் சிவப்பு தடிப்பு இருக்கு", language="ta")
+    assert p_rash_ta is not None
+    assert p_rash_ta["condition_id"] == "skin_rash_dermatitis"
+
+    # 2. Minor Wounds & Burns
+    p_wound = lookup_clinical_protocol("Deep bleeding cut and scrape on finger", language="en")
+    assert p_wound is not None
+    assert p_wound["condition_id"] == "minor_wounds_burns"
+    assert "tetanus" in str(p_wound["warning_signs"]).lower() or "bleeding" in str(p_wound["recommended_actions"]).lower()
+
+    # 2b. Minor Wounds in Tamil (வெட்டுக் காயம்)
+    p_wound_ta = lookup_clinical_protocol("கத்தியால் வெட்டுக் காயம் ஏற்பட்டு ரத்தம் வருது", language="ta")
+    assert p_wound_ta is not None
+    assert p_wound_ta["condition_id"] == "minor_wounds_burns"
+
+    # 3. Conjunctivitis / Red Eye
+    p_eye = lookup_clinical_protocol("My eyes are red, burning, with sticky watery discharge", language="en")
+    assert p_eye is not None
+    assert p_eye["condition_id"] == "acute_conjunctivitis"
+
+    # 3b. Red Eye in Hindi (आँख लाल)
+    p_eye_hi = lookup_clinical_protocol("मेरी आँख लाल हो गई है और पानी आ रहा है", language="hi")
+    assert p_eye_hi is not None
+    assert p_eye_hi["condition_id"] == "acute_conjunctivitis"
+
+    # 4. Insect Bite & Abscess
+    p_bite = lookup_clinical_protocol("Bitten by an insect with painful swelling and boil bump", language="en")
+    assert p_bite is not None
+    assert p_bite["condition_id"] == "insect_bite_abscess"
+
+
+def test_tts_text_cleaner():
+    from app.models.bhashini_tts import tts_service
+
+    raw_markdown = "**நோயாளி நிலை**: - காய்ச்சல் 101°F [MoHFW: 2024].\n* Paracetamol 500mg (2 முறை)."
+    cleaned = tts_service.clean_spoken_text(raw_markdown)
+    assert "*" not in cleaned
+    assert "[" not in cleaned
+    assert "]" not in cleaned
+    assert "(" not in cleaned
+    assert ")" not in cleaned
+    assert "நோயாளி" in cleaned
+
+
+
 

@@ -8,7 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     # Application & Environment
-    PROJECT_NAME: str = "Vyoma Offline Medical AI Assistant"
+    PROJECT_NAME: str = "AVERA - Medical AI Assistant"
     ENVIRONMENT: str = "production"
     LOG_LEVEL: str = "INFO"
     DEBUG: bool = False

@@ -1,137 +1,259 @@
 """
-Touchscreen Kiosk QSS Stylesheet optimized for Waveshare 7-inch 1024x600 display.
-High contrast, large touch targets (60-80px), legible fonts, accessible colors.
+AVERA Touchscreen Kiosk QSS Stylesheet.
+Clean, modern, accessible Medical White & Royal Blue design system
+optimized for touchscreen kiosks, field tablets, and desktop displays.
 """
 
 KIOSK_STYLESHEET = """
+/* Base Window & Global Fonts */
 QWidget {
-    background-color: #0B132B;
-    color: #F8FAFC;
-    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background-color: #F8FAFC;
+    color: #1E293B;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Ubuntu', sans-serif;
     font-size: 16px;
 }
 
 /* Top Navigation Bar */
 QFrame#TopBar {
-    background-color: #1C2541;
-    border-bottom: 2px solid #3A506B;
-    min-height: 56px;
-    max-height: 56px;
+    background-color: #FFFFFF;
+    border-bottom: 1.5px solid #E2E8F0;
+    min-height: 64px;
+    max-height: 64px;
 }
 
-QLabel#TopBarTitle {
-    font-size: 20px;
-    font-weight: bold;
-    color: #00E8C6;
+QLabel#TopBarBrand {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1D4ED8;
+    letter-spacing: 0.5px;
 }
 
-QLabel#TopBarStatus {
+QLabel#TopBarTagline {
+    font-size: 12px;
+    color: #64748B;
+    font-weight: 500;
+}
+
+QLabel#TopBarSubHeader {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+}
+
+QLabel#TopBarMotto {
+    font-size: 12px;
+    color: #64748B;
+}
+
+QFrame#TopBarDivider {
+    background-color: #E2E8F0;
+    width: 1px;
+    max-width: 1px;
+    min-height: 36px;
+    max-height: 36px;
+}
+
+QLabel#TopBarClock {
     font-size: 14px;
-    color: #94A3B8;
+    font-weight: 600;
+    color: #475569;
 }
 
-/* Push Buttons - Minimum 60-80px touch target */
+QLabel#TopBarTelemetry {
+    font-size: 12px;
+    color: #64748B;
+    background-color: #F1F5F9;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+/* Push Buttons - Touch Friendly (min 52-64px height) */
 QPushButton {
-    background-color: #1C2541;
-    color: #F8FAFC;
-    border: 2px solid #3A506B;
+    background-color: #FFFFFF;
+    color: #1E293B;
+    border: 1.5px solid #CBD5E1;
     border-radius: 12px;
-    padding: 12px 20px;
-    font-size: 18px;
+    padding: 10px 20px;
+    font-size: 17px;
     font-weight: 600;
-    min-height: 58px;
+    min-height: 52px;
 }
 
 QPushButton:hover {
-    background-color: #3A506B;
-    border-color: #00E8C6;
+    background-color: #EFF6FF;
+    border-color: #3B82F6;
+    color: #1D4ED8;
 }
 
 QPushButton:pressed {
-    background-color: #00E8C6;
-    color: #0B132B;
+    background-color: #DBEAFE;
+    border-color: #2563EB;
+}
+
+QPushButton:disabled {
+    background-color: #F1F5F9;
+    color: #94A3B8;
+    border-color: #E2E8F0;
 }
 
 /* Primary Action Buttons */
 QPushButton#PrimaryBtn {
-    background-color: #00E8C6;
-    color: #0B132B;
+    background-color: #2563EB;
+    color: #FFFFFF;
     border: none;
-    font-size: 20px;
-    font-weight: bold;
-    min-height: 64px;
+    font-size: 18px;
+    font-weight: 700;
+    min-height: 56px;
+    border-radius: 12px;
+}
+
+QPushButton#PrimaryBtn:hover {
+    background-color: #1D4ED8;
 }
 
 QPushButton#PrimaryBtn:pressed {
-    background-color: #00B49F;
+    background-color: #1E40AF;
 }
 
-/* Microphone Push-to-Talk Button */
+QPushButton#PrimaryBtn:disabled {
+    background-color: #93C5FD;
+    color: #EFF6FF;
+}
+
+/* Active Language Card (Blue Background like Reference Image) */
+QPushButton#ActiveLangCard {
+    background-color: #2563EB;
+    color: #FFFFFF;
+    border: 1.5px solid #2563EB;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: left;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+QPushButton#ActiveLangCard:hover {
+    background-color: #1D4ED8;
+    border-color: #1D4ED8;
+}
+
+/* Inactive Language Card (White with Clean Border and Chevron) */
+QPushButton#LangCard {
+    background-color: #FFFFFF;
+    color: #0F172A;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: left;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+QPushButton#LangCard:hover {
+    background-color: #F0F7FF;
+    border-color: #93C5FD;
+    color: #1D4ED8;
+}
+
+QPushButton#LangCard:pressed {
+    background-color: #DBEAFE;
+}
+
+/* Microphone Push-to-Talk / 10s Click Button */
 QPushButton#MicBtn {
-    background-color: #1C2541;
-    color: #00E8C6;
-    border: 4px solid #00E8C6;
-    border-radius: 40px;
-    font-size: 22px;
-    font-weight: bold;
-    min-width: 80px;
-    min-height: 80px;
+    background-color: #EFF6FF;
+    color: #2563EB;
+    border: 3px solid #2563EB;
+    border-radius: 36px;
+    font-size: 20px;
+    font-weight: 700;
+    min-height: 68px;
+    padding: 10px 24px;
+}
+
+QPushButton#MicBtn:hover {
+    background-color: #DBEAFE;
+    border-color: #1D4ED8;
+    color: #1D4ED8;
 }
 
 QPushButton#MicBtn:checked, QPushButton#MicBtn:pressed {
     background-color: #EF4444;
     color: #FFFFFF;
-    border-color: #F87171;
+    border-color: #DC2626;
 }
 
-/* Emergency Red Button / Banner */
-QFrame#EmergencyBanner {
-    background-color: #7F1D1D;
-    border: 2px solid #EF4444;
-    border-radius: 12px;
-    padding: 14px;
-}
-
-QLabel#EmergencyText {
-    color: #FEF2F2;
-    font-size: 18px;
-    font-weight: bold;
-}
-
-/* Navigation Icons / Buttons */
+/* Navigation Buttons (Top Bar) */
 QPushButton#NavBtn {
-    background-color: #1C2541;
-    border: 1px solid #3A506B;
-    border-radius: 8px;
-    font-size: 16px;
-    min-height: 44px;
-    min-width: 44px;
+    background-color: #F8FAFC;
+    color: #334155;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 40px;
+    min-width: 40px;
     padding: 6px 14px;
 }
 
-/* Result Cards & Panels */
+QPushButton#NavBtn:hover {
+    background-color: #EFF6FF;
+    border-color: #93C5FD;
+    color: #1D4ED8;
+}
+
+QPushButton#NavBtn:pressed {
+    background-color: #DBEAFE;
+}
+
+QPushButton#NavBtn:disabled {
+    background-color: #F8FAFC;
+    color: #CBD5E1;
+    border-color: #F1F5F9;
+}
+
+/* Citizen Top-Bar Badge */
+QPushButton#PatientBadgeBtn {
+    background-color: #F0FDF4;
+    color: #166534;
+    border: 1.5px solid #BBF7D0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 14px;
+    min-height: 40px;
+}
+
+QPushButton#PatientBadgeBtn:hover {
+    background-color: #DCFCE7;
+    border-color: #86EFAC;
+}
+
+/* Result Cards & Information Panels */
 QFrame#CardFrame {
-    background-color: #1C2541;
-    border: 1px solid #3A506B;
+    background-color: #FFFFFF;
+    border: 1.5px solid #E2E8F0;
     border-radius: 14px;
-    padding: 16px;
+    padding: 18px;
 }
 
 QLabel#CardHeader {
     font-size: 18px;
-    font-weight: bold;
-    color: #00E8C6;
+    font-weight: 700;
+    color: #1D4ED8;
 }
 
 QLabel#CardBody {
     font-size: 16px;
-    line-height: 1.4;
-    color: #E2E8F0;
+    line-height: 1.5;
+    color: #1E293B;
 }
 
 QLabel#SourceCitation {
     font-size: 13px;
-    color: #94A3B8;
+    color: #64748B;
     font-style: italic;
 }
 
@@ -142,56 +264,55 @@ QScrollArea {
 }
 
 QScrollBar:vertical {
-    background: #0B132B;
-    width: 14px;
-    border-radius: 7px;
+    background: #F1F5F9;
+    width: 12px;
+    border-radius: 6px;
 }
 
 QScrollBar::handle:vertical {
-    background: #3A506B;
-    border-radius: 7px;
-    min-height: 30px;
+    background: #CBD5E1;
+    border-radius: 6px;
+    min-height: 28px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background: #00E8C6;
+    background: #94A3B8;
 }
 
 /* Citizen Information Strip */
 QFrame#CitizenBar {
-    background-color: #111C38;
-    border: 1px solid #2A3C60;
-    border-radius: 10px;
-    padding: 6px 14px;
-    min-height: 48px;
+    background-color: #FFFFFF;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 8px 16px;
+    min-height: 50px;
 }
 
 QLabel#CitizenName {
     font-size: 16px;
-    font-weight: bold;
-    color: #38BDF8;
+    font-weight: 700;
+    color: #0F172A;
 }
 
 QLabel#CitizenMeta {
-    font-size: 13px;
-    color: #94A3B8;
+    font-size: 14px;
+    color: #64748B;
 }
 
-/* Action Buttons */
+/* Action Buttons (Print & New Assessment) */
 QPushButton#PrintBtn {
     background-color: #2563EB;
     color: #FFFFFF;
-    border: 1px solid #60A5FA;
+    border: none;
     border-radius: 12px;
     font-size: 17px;
-    font-weight: bold;
-    min-height: 58px;
+    font-weight: 700;
+    min-height: 56px;
     padding: 10px 24px;
 }
 
 QPushButton#PrintBtn:hover {
     background-color: #1D4ED8;
-    border-color: #93C5FD;
 }
 
 QPushButton#PrintBtn:pressed {
@@ -201,17 +322,16 @@ QPushButton#PrintBtn:pressed {
 QPushButton#NewAssessmentBtn {
     background-color: #059669;
     color: #FFFFFF;
-    border: 2px solid #34D399;
+    border: none;
     border-radius: 12px;
-    font-size: 18px;
-    font-weight: bold;
-    min-height: 60px;
+    font-size: 17px;
+    font-weight: 700;
+    min-height: 56px;
     padding: 10px 24px;
 }
 
 QPushButton#NewAssessmentBtn:hover {
     background-color: #047857;
-    border-color: #6EE7B7;
 }
 
 QPushButton#NewAssessmentBtn:pressed {
@@ -220,8 +340,8 @@ QPushButton#NewAssessmentBtn:pressed {
 
 /* Patient Summary Card at End of Consultation */
 QFrame#PatientSummaryCard {
-    background-color: #0F172A;
-    border: 2px solid #334155;
+    background-color: #F8FAFC;
+    border: 1.5px solid #CBD5E1;
     border-radius: 12px;
     padding: 16px;
     margin-top: 8px;
@@ -229,56 +349,70 @@ QFrame#PatientSummaryCard {
 
 /* Age & Risk Guidance Card */
 QFrame#AgeGuidanceCard {
-    background-color: #422006;
+    background-color: #FFFBEB;
     border: 2px solid #F59E0B;
     border-radius: 12px;
     padding: 14px;
-    margin-top: 6px;
+    margin-top: 8px;
 }
 
 QLabel#AgeGuidanceTitle {
     font-size: 16px;
-    font-weight: bold;
-    color: #FBBF24;
+    font-weight: 700;
+    color: #92400E;
 }
 
 QLabel#AgeGuidanceBody {
     font-size: 15px;
-    color: #FEF3C7;
-    line-height: 1.4;
+    color: #78350F;
+    line-height: 1.5;
+}
+
+/* Emergency Red Banner */
+QFrame#EmergencyBanner {
+    background-color: #FEF2F2;
+    border: 2px solid #EF4444;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+QLabel#EmergencyText {
+    color: #991B1B;
+    font-size: 18px;
+    font-weight: 700;
 }
 
 /* Text Inputs & Search Boxes */
 QLineEdit {
-    background-color: #1C2541;
-    color: #F8FAFC;
-    border: 2px solid #3A506B;
-    border-radius: 8px;
-    padding: 10px 14px;
+    background-color: #FFFFFF;
+    color: #0F172A;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 10px;
+    padding: 10px 16px;
     font-size: 16px;
 }
 
 QLineEdit:focus {
-    border-color: #00E8C6;
+    border-color: #2563EB;
+    background-color: #FFFFFF;
 }
 
 /* Table Widget for Citizen Registry Dialog */
 QTableWidget {
-    background-color: #0B132B;
-    gridline-color: #1E293B;
-    color: #F1F5F9;
-    border: 1px solid #3A506B;
-    border-radius: 8px;
-    selection-background-color: #0D9488;
-    selection-color: #FFFFFF;
+    background-color: #FFFFFF;
+    gridline-color: #F1F5F9;
+    color: #0F172A;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 10px;
+    selection-background-color: #EFF6FF;
+    selection-color: #1D4ED8;
 }
 
 QHeaderView::section {
-    background-color: #1C2541;
-    color: #00E8C6;
-    padding: 8px;
-    font-weight: bold;
-    border: 1px solid #2D3748;
+    background-color: #F8FAFC;
+    color: #475569;
+    padding: 10px;
+    font-weight: 700;
+    border: 1px solid #E2E8F0;
 }
 """
-
