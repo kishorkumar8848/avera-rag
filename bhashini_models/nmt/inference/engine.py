@@ -191,6 +191,8 @@ class Model:
             max_input_length=160,
             max_decoding_length=64,
             beam_size=1,
+            repetition_penalty=1.3,
+            no_repeat_ngram_size=3,
         )
         translations = [" ".join(x.hypotheses[0]) for x in translations]
         return translations

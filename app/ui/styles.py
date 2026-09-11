@@ -415,4 +415,57 @@ QHeaderView::section {
     font-weight: 700;
     border: 1px solid #E2E8F0;
 }
+
+/* Retake & Symptom Verification Card */
+QFrame#RetakeCard {
+    background-color: #FFFBEB;
+    border: 2px solid #F59E0B;
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 8px;
+}
+
+QLabel#RetakeTitle {
+    font-size: 20px;
+    font-weight: 800;
+    color: #B45309;
+}
+
+QLabel#RetakeCapturedText {
+    font-size: 15px;
+    color: #334155;
+    background-color: #FFFFFF;
+    border: 1.5px solid #FDE68A;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 8px 0px;
+    line-height: 1.4;
+}
+
+QLabel#RetakeBody {
+    font-size: 16px;
+    color: #92400E;
+    line-height: 1.5;
+    margin: 4px 0px;
+}
+
+QPushButton#RetakeBtn {
+    background-color: #D97706;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-size: 18px;
+    font-weight: 700;
+    min-height: 56px;
+    margin-top: 12px;
+}
+
+QPushButton#RetakeBtn:hover {
+    background-color: #B45309;
+}
+
+QPushButton#RetakeBtn:pressed {
+    background-color: #92400E;
+}
 """

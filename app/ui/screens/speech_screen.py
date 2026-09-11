@@ -437,6 +437,49 @@ class SpeechScreen(QWidget if HAS_QT else object):
             "referral": "Referral Guidance:"
         })
 
+        # Check if the query lacks clinical symptoms (greeting, unclear speech, or noise)
+        if res.get("needs_retake"):
+            retake_frame = QFrame()
+            retake_frame.setObjectName("RetakeCard")
+            r_layout = QVBoxLayout(retake_frame)
+            r_layout.setSpacing(12)
+
+            # Warning title
+            r_title = QLabel(f"⚠️ {res.get('title', 'Clinical Symptoms Not Detected')}")
+            r_title.setObjectName("RetakeTitle")
+            r_title.setWordWrap(True)
+            r_layout.addWidget(r_title)
+
+            # Captured voice utterance
+            captured_speech = res.get("query", "").strip()
+            if captured_speech:
+                c_lbl = QLabel(f"<b>{lbls['query']}:</b> \"{captured_speech}\"")
+                c_lbl.setObjectName("RetakeCapturedText")
+                c_lbl.setWordWrap(True)
+                r_layout.addWidget(c_lbl)
+
+            # Informative message and next step instructions
+            r_body = QLabel(res.get("summary", ""))
+            r_body.setObjectName("RetakeBody")
+            r_body.setWordWrap(True)
+            r_layout.addWidget(r_body)
+
+            # Big prominent Retake Action Button
+            btn_text = res.get("button_text", "🎤 மீண்டும் பேசவும் (Click to Retake)")
+            retake_action_btn = QPushButton(btn_text)
+            retake_action_btn.setObjectName("RetakeBtn")
+            retake_action_btn.setCursor(Qt.PointingHandCursor)
+            retake_action_btn.clicked.connect(self._start_recording)
+            r_layout.addWidget(retake_action_btn)
+
+            self.results_layout.addWidget(retake_frame)
+
+            # Reset recording controls
+            self.mic_btn.setText("🎤 Click to Speak (10s)")
+            self.mic_btn.setEnabled(True)
+            self.mic_btn.setStyleSheet("")
+            return
+
         # 1. Query Card
         q_frame = QFrame()
         q_frame.setObjectName("CardFrame")

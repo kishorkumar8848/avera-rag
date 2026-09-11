@@ -10,6 +10,7 @@ from app.core.logging import logger, log_interaction_telemetry
 from app.safety.red_flags import red_flag_detector
 from app.safety.policies import ClinicalPolicyEngine
 from app.safety.validator import OutputValidator, MedicalResponseSchema
+from app.safety.query_validator import QueryValidator
 from app.models.bhashini_asr import asr_service
 from app.models.bhashini_nmt import nmt_service
 from app.models.bhashini_tts import tts_service
@@ -102,6 +103,36 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
             self._emit_status("Translating query...")
             english_query, nmt_in_ms = nmt_service.translate_to_english(query_text, src_lang=self.language)
             latencies["nmt_in_ms"] = nmt_in_ms
+
+            # 3b. Clinical Intent & Symptom Validation
+            # Prevents RAG hallucinations and NMT loops on casual greetings or unclear speech
+            is_valid, retake_payload = QueryValidator.validate_clinical_query(
+                raw_query=query_text,
+                english_query=english_query,
+                language=self.language
+            )
+            if not is_valid and retake_payload:
+                logger.info(f"Query '{query_text}' failed clinical validation: {retake_payload.get('reason')}")
+                self._emit_status("⚠️ குரல் தெளிவாக இல்லை / Voice unclear")
+
+                # Speak short friendly retry prompt in patient's language
+                tts_service.speak_async(
+                    text=retake_payload["spoken_text"],
+                    language=self.language,
+                    on_finished=lambda: self._emit_status("Ready")
+                )
+
+                total_ms = (time.time() - start_total) * 1000.0
+                retake_payload["patient_profile"] = self.patient_profile
+                retake_payload["latencies"] = latencies
+                retake_payload["total_ms"] = round(total_ms, 1)
+
+                if self.signals:
+                    try:
+                        self.signals.finished.emit(retake_payload)
+                    except RuntimeError:
+                        pass
+                return
 
             # 4. Medical RAG (Hybrid SQLite FTS5 + FAISS)
             self._emit_status("Searching medical guidance...")

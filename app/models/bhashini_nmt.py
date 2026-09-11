@@ -183,6 +183,22 @@ class NMTService:
         latency_ms = (time.time() - start_time) * 1000.0
         return text, latency_ms
 
+    @staticmethod
+    def _clean_repetitions(text: str) -> str:
+        """Sanitizes repeating phrases or degenerated n-grams that can occur in beam search."""
+        if not text:
+            return text
+        import re
+        # 1. Deduplicate multi-word phrase loops (e.g. "அது ஒரு நாடும் அது ஒரு நாடும்" -> "அது ஒரு நாடும்")
+        pattern_phrase = r'((?:[^\s.,!?]+\s+){1,5}[^\s.,!?]+)(?:\s*[,.]?\s*\1)+'
+        cleaned = re.sub(pattern_phrase, r'\1', text)
+
+        # 2. Deduplicate single repeated words (e.g. "அடிமட்டம் அடிமட்டம் அடிமட்டம்" -> "அடிமட்டம்")
+        pattern_single = r'([^\s.,!?]+)(?:\s+\1)+'
+        cleaned = re.sub(pattern_single, r'\1', cleaned)
+
+        return cleaned.strip()
+
     def translate_from_english(self, english_text: str, tgt_lang: str) -> Tuple[str, float]:
         """
         Translates English clinical guidance into target Indic language (e.g. Tamil, Hindi).
@@ -200,6 +216,7 @@ class NMTService:
                 res = local_nmt.infer(english_text, src_lang="en", tgt_lang=tgt_lang.lower())
                 translated = res.get("translated_text", "").strip()
                 if translated:
+                    translated = self._clean_repetitions(translated)
                     latency_ms = (time.time() - start_time) * 1000.0
                     logger.info(f"Bhashini NMT (en->{tgt_lang}): '{english_text[:40]}...' -> '{translated[:40]}...' ({latency_ms:.1f}ms)")
                     return translated, latency_ms
@@ -212,6 +229,7 @@ class NMTService:
             res = requests.post(self.nmt_url, json=payload, timeout=settings.BUDGET_NMT_SEC + 1.0)
             if res.status_code == 200:
                 translated = res.json().get("translated_text", english_text).strip()
+                translated = self._clean_repetitions(translated)
                 latency_ms = (time.time() - start_time) * 1000.0
                 logger.info(f"Bhashini REST NMT (en->{tgt_lang}): '{english_text[:40]}...' -> '{translated[:40]}...' ({latency_ms:.1f}ms)")
                 return translated, latency_ms
@@ -230,6 +248,7 @@ class NMTService:
             )
             translated = qwen_backend._call_inference(sys_prompt, english_text).strip()
             if translated and len(translated) > 5 and not translated.startswith("{"):
+                translated = self._clean_repetitions(translated)
                 latency_ms = (time.time() - start_time) * 1000.0
                 logger.info(f"Qwen LLM translation (en->{tgt_lang}): '{english_text[:40]}...' -> '{translated[:40]}...' ({latency_ms:.1f}ms)")
                 return translated, latency_ms
