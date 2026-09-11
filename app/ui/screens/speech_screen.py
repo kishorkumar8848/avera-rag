@@ -465,27 +465,47 @@ class SpeechScreen(QWidget if HAS_QT else object):
         # 2b. Age & Risk Personalization Alert Card (Highlighting 50+ or Pediatric Guidance)
         p = self.active_patient
         if p and (p.age >= 50 or p.age < 12 or p.chronic_conditions):
+            lang = self.active_language.lower()
             age_frame = QFrame()
             age_frame.setObjectName("AgeGuidanceCard")
             age_layout = QVBoxLayout(age_frame)
-            age_title = QLabel(f"⚠️ Age & Risk Factor Precautions ({p.age_display_badge})")
+
+            age_titles = {
+                "ta": f"⚠️ வயது மற்றும் இடர் முன்னெச்சரிக்கைகள் ({p.age_display_badge})",
+                "hi": f"⚠️ आयु और जोखिम संबंधी सावधानियां ({p.age_display_badge})",
+                "gu": f"⚠️ ઉંમર અને જોખમ સંબંધિત સાવચેતી ({p.age_display_badge})",
+                "en": f"⚠️ Age & Risk Factor Precautions ({p.age_display_badge})"
+            }
+            age_title = QLabel(age_titles.get(lang, age_titles["en"]))
             age_title.setObjectName("AgeGuidanceTitle")
             age_layout.addWidget(age_title)
 
             age_msg = ""
             if p.age >= 50:
-                age_msg = (
-                    f"Patient is {p.age} years old (Adult 50+). Monitor blood pressure and pulse twice daily. "
-                    "Ensure maximum daily Paracetamol does not exceed 2g/day and avoid NSAIDs if hypertensive. "
-                    "Seek medical evaluation if fever persists over 48 hours or causes confusion."
-                )
+                age_dict = {
+                    "ta": f"நோயாளிக்கு {p.age} வயது (50+ வயதுடையவர்). இரத்த அழுத்தம் (BP) மற்றும் நாடித்துடிப்பை தினமும் இருமுறை கண்காணிக்கவும். பாராசிட்டமால் 2g/நாளுக்கு மேல் எடுக்க வேண்டாம். உயர் இரத்த அழுத்தம் இருந்தால் வலி நிவாரணி மாத்திரைகளைத் தவிர்க்கவும். காய்ச்சல் 48 மணி நேரத்திற்கு மேல் நீடித்தால் மருத்துவரை அணுகவும்.",
+                    "hi": f"मरीज की उम्र {p.age} वर्ष (50+ वयस्क) है। दिन में दो बार ब्लड प्रेशर और नाड़ी की जांच करें। पेरासिटामोल 2 ग्राम/दिन से अधिक न लें और पेनकिलर से बचें। यदि बुखार 48 घंटे से अधिक रहे तो डॉक्टर को दिखाएं।",
+                    "gu": f"દર્દીની ઉંમર {p.age} વર્ષ (50+ વયસ્ક) છે. દિવસમાં બે વાર બ્લડ પ્રેશર તપાસો. પેરાસિટામોલ દિવસમાં 2 ગ્રામથી વધુ ન લેવી. તાવ 48 કલાકથી વધુ રહે તો ડૉક્ટરની સલાહ લો.",
+                    "en": f"Patient is {p.age} years old (Adult 50+). Monitor blood pressure and pulse twice daily. Ensure maximum daily Paracetamol does not exceed 2g/day and avoid NSAIDs if hypertensive. Seek medical evaluation if fever persists over 48 hours or causes confusion."
+                }
+                age_msg = age_dict.get(lang, age_dict["en"])
             elif p.age < 12:
-                age_msg = (
-                    f"Pediatric patient ({p.age} years). Strictly avoid adult tablets. Use weight-based Paracetamol syrup only. "
-                    "Never give Aspirin (Reye's syndrome risk). Give frequent sips of ORS. Urgent referral if child refuses feeds."
-                )
+                age_dict = {
+                    "ta": f"குழந்தை நோயாளி ({p.age} வயது). பெரியவர்களுக்கான மாத்திரைகளை ஒருபோதும் கொடுக்க வேண்டாம். உடல் எடைக்கு ஏற்ற பாராசிட்டமால் சிரப் மட்டுமே பயன்படுத்தவும். ஆஸ்பிரின் மாத்திரை கண்டிப்பாகக் கூடாது. ஓ.ஆர்.எஸ் திரவம் அடிக்கடி கொடுக்கவும். குழந்தை உணவு உட்கொள்ள மறுத்தாலோ அல்லது வேகமாக மூச்சு விட்டாலோ உடனே மருத்துவமனைக்கு அழைத்துச் செல்லவும்.",
+                    "hi": f"बाल रोगी ({p.age} वर्ष)। वयस्कों की गोलियां बिल्कुल न दें। केवल वजन अनुसार पेरासिटामोल सिरप दें। एस्पिरिन कभी न दें। बार-बार ओआरएस का घोल पिलाएं। यदि बच्चा दूध/खाना न ले या सांस तेज चले तो तुरंत अस्पताल ले जाएं।",
+                    "gu": f"બાળ દર્દી ({p.age} વર્ષ). પુખ્ત વયના લોકોની ગોળીઓ ક્યારેય ન આપવી. માત્ર વજન મુજબ પેરાસિટામોલ સીરપ આપવી. એસ્પિરિન બિલકુલ ન આપવી. વારંવાર ORS આપવું. જો બાળક ખોરાક ન લે અથવા શ્વાસ ઝડપથી ચાલે તો તરત જ દવાખાને લઈ જવું.",
+                    "en": f"Pediatric patient ({p.age} years). Strictly avoid adult tablets. Use weight-based Paracetamol syrup only. Never give Aspirin (Reye's syndrome risk). Give frequent sips of ORS. Urgent referral if child refuses feeds."
+                }
+                age_msg = age_dict.get(lang, age_dict["en"])
+
             if p.chronic_conditions:
-                age_msg += f"\nKnown Conditions: {', '.join(p.chronic_conditions)}"
+                cond_hdr = {
+                    "ta": "\nமுந்தைய நோய்கள்",
+                    "hi": "\nपूर्व स्थितियां",
+                    "gu": "\nપૂર્વ બીમારીઓ",
+                    "en": "\nKnown Conditions"
+                }.get(lang, "\nKnown Conditions")
+                age_msg += f"{cond_hdr}: {', '.join(p.chronic_conditions)}"
 
             age_body = QLabel(age_msg)
             age_body.setObjectName("AgeGuidanceBody")

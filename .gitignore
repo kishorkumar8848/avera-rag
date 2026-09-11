@@ -26,6 +26,7 @@ models/*
 *.zip
 *.tar.gz
 *.tar
+*.flitevox
 bhashini_models/**/checkpoints/**/*.onnx*
 bhashini_models/**/checkpoints/**/*.data
 bhashini_models/**/checkpoints/**/*.bin

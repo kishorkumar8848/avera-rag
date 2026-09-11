@@ -38,6 +38,7 @@ class TTSInference:
             ],
             "hi": ["cmu_indic_hin_ab.flitevox"],
             "ka": ["cmu_indic_kan_plv.flitevox"],
+            "kn": ["cmu_indic_kan_plv.flitevox"],
             "mr": [
                 "cmu_indic_mar_aup.flitevox",
                 "cmu_indic_mar_slp.flitevox",
@@ -50,6 +51,7 @@ class TTSInference:
                 "cmu_indic_tel_ss.flitevox",
             ],
             "en": [
+                "cmu_us_slt.flitevox",
                 "cmu_us_aew.flitevox",
                 "cmu_us_ahw.flitevox",
                 "cmu_us_awb.flitevox",

@@ -149,12 +149,15 @@ class QwenBackend:
             self.llama_engine = None
         self._is_loaded = False
 
+    load = load_model
+
     def generate_clinical_guidance(
         self,
         query: str,
         retrieved_context: List[Dict[str, Any]],
         visual_observations: Optional[List[str]] = None,
-        patient_profile: Optional[Dict[str, Any]] = None
+        patient_profile: Optional[Dict[str, Any]] = None,
+        language: str = "en"
     ) -> Tuple[Optional[MedicalResponseSchema], float]:
         """
         Generates grounded, non-diagnostic clinical advice with few-shot guidance,
@@ -163,14 +166,15 @@ class QwenBackend:
             (validated_schema: MedicalResponseSchema, latency_ms: float)
         """
         start_time = time.time()
+        lang = language.lower() if language else "en"
 
         patient_age = patient_profile.get("age") if patient_profile else None
         patient_conditions = patient_profile.get("chronic_conditions") if patient_profile else None
 
-        # Check for direct match against verified MoHFW Major Clinical Protocols
+        # Check for direct match against verified MoHFW Major Clinical Protocols in patient's language
         matched_protocol = lookup_clinical_protocol(
             query,
-            language="en",
+            language=lang,
             patient_age=patient_age,
             patient_conditions=patient_conditions
         )
@@ -215,31 +219,38 @@ class QwenBackend:
         user_content += f"Retrieved Medical Evidence:\n{full_context_text}\n\nProvide structured clinical guidance:"
 
         # First generation attempt
-        raw_output = self._call_inference(STRICT_SYSTEM_PROMPT, user_content)
+        raw_output = self._call_inference(STRICT_SYSTEM_PROMPT, user_content, language=lang)
         is_valid, parsed_schema, err = OutputValidator.validate_and_parse(raw_output)
 
-        if not is_valid:
-            logger.warning(f"JSON schema validation failed ({err}). Retrying with stricter prompt...")
-            retry_prompt = (
-                f"{STRICT_SYSTEM_PROMPT}\n\n"
-                f"ATTENTION: Your previous response failed JSON validation with error: {err}. "
-                "Output ONLY a syntactically perfect JSON object without markdown formatting."
-            )
-            raw_output = self._call_inference(retry_prompt, user_content)
-            is_valid, parsed_schema, err = OutputValidator.validate_and_parse(raw_output)
+        if is_valid and parsed_schema:
+            latency_ms = (time.time() - start_time) * 1000.0
+            return parsed_schema, latency_ms
 
-        # If still invalid, generate fallback grounded schema from retrieved context
-        if not is_valid or parsed_schema is None:
-            logger.error(f"Second validation attempt failed: {err}. Producing deterministic fallback.")
-            parsed_schema = self._create_deterministic_fallback(query, retrieved_context)
+        logger.warning(f"Initial schema validation failed: {err}. Triggering 1x self-correction retry...")
 
+        # 1x Retry self-correction prompt
+        retry_prompt = (
+            f"PREVIOUS INVALID OUTPUT:\n{raw_output}\n\n"
+            f"VALIDATION ERROR:\n{err}\n\n"
+            "Correct the JSON so it strictly matches the required medical schema without markdown fences. Provide the valid JSON now:"
+        )
+        retry_raw_output = self._call_inference(STRICT_SYSTEM_PROMPT, retry_prompt, language=lang)
+        is_valid_retry, parsed_schema_retry, err_retry = OutputValidator.validate_and_parse(retry_raw_output)
+
+        if is_valid_retry and parsed_schema_retry:
+            latency_ms = (time.time() - start_time) * 1000.0
+            logger.info("Self-correction retry succeeded!")
+            return parsed_schema_retry, latency_ms
+
+        logger.error(f"Retry validation also failed ({err_retry}). Using deterministic clinical protocol fallback.")
+        fallback_schema = self._create_deterministic_fallback(query, retrieved_context, language=lang)
         latency_ms = (time.time() - start_time) * 1000.0
-        return parsed_schema, latency_ms
+        return fallback_schema, latency_ms
 
-    def _call_inference(self, system_prompt: str, user_content: str) -> str:
-        """Dispatches prompt to active backend (llama.cpp, Ollama, or mock)."""
-        if not self._is_loaded:
-            self.load_model()
+    def _call_inference(self, system_prompt: str, user_content: str, language: str = "en") -> str:
+        """Invokes active backend engine (llama.cpp or Ollama)."""
+        if not self._is_loaded and not self.load():
+            return self._generate_mock_json(user_content, language=language)
 
         if self.backend_type == "llama_cpp" and self.llama_engine is not None:
             messages = [
@@ -280,10 +291,66 @@ class QwenBackend:
                 logger.error(f"Ollama inference error: {e}")
 
         # Fallback protocol-grounded mock response
-        return self._generate_mock_json(user_content)
+        return self._generate_mock_json(user_content, language=language)
 
-    def _generate_mock_json(self, user_content: str) -> str:
-        """Generates deterministic mock JSON matching retrieved evidence."""
+    def _generate_mock_json(self, user_content: str, language: str = "en") -> str:
+        """Generates deterministic mock JSON matching retrieved evidence in patient's language."""
+        lang = language.lower() if language else "en"
+
+        if lang == "ta":
+            return json.dumps({
+                "summary": "சரிபார்க்கப்பட்ட வழிகாட்டுதலின்படி மருத்துவ முதலுதவி ஆலோசனை வழங்கப்பட்டுள்ளது.",
+                "observations": ["அறிவிக்கப்பட்ட மருத்துவ அறிகுறிகள் வழிகாட்டுதலுடன் பொருந்துகின்றன"],
+                "possible_explanations": ["ஆரம்ப சுகாதார வழிகாட்டுதல்களில் பதிவு செய்யப்பட்டுள்ள பொதுவான உடல்நிலை"],
+                "recommended_actions": [
+                    "நோயாளிக்கு வாய்வழி திரவங்கள் (ORS / சுத்தமான தண்ணீர்) மூலம் நீர்ச்சத்து குறையாமல் பார்த்துக் கொள்ளவும்",
+                    "குளிர்ந்த, நல்ல காற்றோட்டமான அறையில் ஓய்வெடுக்கவும்",
+                    "அதிக காய்ச்சல் இருந்தால் வழிகாட்டுதலின்படி பாராசிட்டமால் கொடுக்கவும்"
+                ],
+                "warning_signs": [
+                    "மூச்சுத்திணறல், அதீத சோர்வு, தொடர் வாந்தி அல்லது 3 நாட்களுக்கு மேல் நீடிக்கும் காய்ச்சல்"
+                ],
+                "referral": "உறுதியான மருத்துவ பரிசோதனைக்கு அருகில் உள்ள ஆரம்ப சுகாதார நிலையத்திற்கு (PHC) செல்லவும்.",
+                "confidence": 0.88,
+                "sources": ["தேசிய சுகாதார இயக்கம் (NHM) வழிகாட்டுதல்"]
+            }, ensure_ascii=False)
+
+        elif lang == "hi":
+            return json.dumps({
+                "summary": "सत्यापित प्राथमिक स्वास्थ्य दिशानिर्देशों के अनुसार नैदानिक मार्गदर्शन प्रदान किया गया है।",
+                "observations": ["बताए गए लक्षण प्राथमिक स्वास्थ्य मार्गदर्शिका से मेल खाते हैं"],
+                "possible_explanations": ["प्राथमिक उपचार दिशानिर्देशों के अंतर्गत स्थिति"],
+                "recommended_actions": [
+                    "मरीज को ओआरएस (ORS) अथवा साफ पानी देकर निर्जलीकरण से बचाएं",
+                    "हवादार और शांत कमरे में पर्याप्त आराम करने दें",
+                    "तेज बुखार होने पर प्रोटोकॉल के अनुसार पेरासिटामोल दें"
+                ],
+                "warning_signs": [
+                    "सांस लेने में कठिनाई, अत्यधिक सुस्ती, लगातार उल्टी या 3 दिन से अधिक तेज बुखार"
+                ],
+                "referral": "पुष्टि और उपचार के लिए तुरंत नजदीकी प्राथमिक स्वास्थ्य केंद्र (PHC) जाएं।",
+                "confidence": 0.88,
+                "sources": ["राष्ट्रीय स्वास्थ्य मिशन (NHM) दिशानिर्देश"]
+            }, ensure_ascii=False)
+
+        elif lang == "gu":
+            return json.dumps({
+                "summary": "ચકાસાયેલ માર્ગદર્શિકા મુજબ પ્રાથમિક આરોગ્ય સંભાળ સલાહ આપવામાં આવી છે.",
+                "observations": ["જણાવેલ લક્ષણો માર્ગદર્શિકા સાથે સુસંગત છે"],
+                "possible_explanations": ["પ્રાથમિક આરોગ્ય માર્ગદર્શિકા હેઠળ સામાન્ય સ્થિતિ"],
+                "recommended_actions": [
+                    "દર્દીને ORS અથવા સ્વચ્છ પાણી આપીને ડિહાઇડ્રેશન ટાળો",
+                    "હવાઉજાસ વાળા ઓરડામાં પૂરતો આરામ કરવા દો",
+                    "તીવ્ર તાવ હોય તો માર્ગદર્શિકા મુજબ પેરાસિટામોલ આપો"
+                ],
+                "warning_signs": [
+                    "શ્વાસ લેવામાં તકલીફ, વધુ પડતી સુસ્તી અથવા 3 દિવસથી વધુ સમય રહેતો તાવ"
+                ],
+                "referral": "ચોક્કસ તપાસ માટે નજીકના પ્રાથમિક આરોગ્ય કેન્દ્ર (PHC) નો સંપર્ક કરો.",
+                "confidence": 0.88,
+                "sources": ["રાષ્ટ્રીય આરોગ્ય મિશન (NHM) માર્ગદર્શિકા"]
+            }, ensure_ascii=False)
+
         return json.dumps({
             "summary": "Clinical guidance retrieved from verified offline protocols.",
             "observations": ["Reported medical symptoms matching retrieved guidance"],
@@ -301,10 +368,11 @@ class QwenBackend:
             "sources": ["MoHFW Standard Treatment Guidelines", "MedlinePlus Health Education"]
         })
 
-    def _create_deterministic_fallback(self, query: str, context: List[Dict[str, Any]]) -> MedicalResponseSchema:
+    def _create_deterministic_fallback(self, query: str, context: List[Dict[str, Any]], language: str = "en") -> MedicalResponseSchema:
         """Builds a verified response directly from retrieved context when LLM generation fails."""
+        lang = language.lower() if language else "en"
         # 1. First priority: Check if query matches a curated major clinical protocol
-        matched = lookup_clinical_protocol(query, language="en")
+        matched = lookup_clinical_protocol(query, language=lang)
         if matched:
             return MedicalResponseSchema(
                 summary=matched["summary"],

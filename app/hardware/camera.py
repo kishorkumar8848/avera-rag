@@ -50,33 +50,64 @@ class CameraService:
         )
 
     def open(self) -> bool:
-        """Initializes the camera hardware with automatic backend fallback."""
+        """Initializes the camera hardware with automatic backend and device scanning."""
         if not HAS_OPENCV:
             logger.warning("OpenCV not installed. Camera running in mock mode.")
             return False
 
-        # Attempt 1: Standard V4L2 / USB camera
-        try:
-            self._cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2 if hasattr(cv2, 'CAP_V4L2') else cv2.CAP_ANY)
-            if self._cap.isOpened():
-                self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.target_width)
-                self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
-                logger.info(f"Opened camera index {self.camera_index} via standard backend.")
-                return True
-        except Exception as e:
-            logger.debug(f"Standard camera open failed: {e}")
+        # Candidate indices to probe: configured index first, then common indices
+        candidates = [self.camera_index]
+        for idx in [0, 1, 2, 3]:
+            if idx not in candidates:
+                candidates.append(idx)
 
-        # Attempt 2: Jetson CSI GStreamer pipeline
+        # Check existing /dev/video* devices if on Linux
+        import glob
+        existing_video_nodes = glob.glob("/dev/video*")
+        if existing_video_nodes:
+            logger.info(f"Detected video device nodes: {existing_video_nodes}")
+
+        for idx in candidates:
+            # Attempt USB / V4L2 with MJPG
+            try:
+                backend = cv2.CAP_V4L2 if hasattr(cv2, 'CAP_V4L2') else cv2.CAP_ANY
+                cap = cv2.VideoCapture(idx, backend)
+                if cap.isOpened():
+                    try:
+                        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                    except Exception:
+                        pass
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.target_width)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
+
+                    # Test reading a frame to verify it actually yields image data
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None and test_frame.size > 0:
+                        self._cap = cap
+                        self.camera_index = idx
+                        logger.info(f"Successfully opened and verified camera index {idx} ({test_frame.shape[1]}x{test_frame.shape[0]}).")
+                        return True
+                    else:
+                        cap.release()
+            except Exception as e:
+                logger.debug(f"Camera index {idx} open failed: {e}")
+
+        # Attempt Jetson CSI GStreamer pipeline as fallback
         try:
             pipeline = self._get_gstreamer_pipeline()
-            self._cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-            if self._cap.isOpened():
-                logger.info("Opened Jetson CSI camera via GStreamer pipeline.")
-                return True
+            cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+            if cap.isOpened():
+                ret, test_frame = cap.read()
+                if ret and test_frame is not None and test_frame.size > 0:
+                    self._cap = cap
+                    logger.info("Opened Jetson CSI camera via GStreamer pipeline.")
+                    return True
+                else:
+                    cap.release()
         except Exception as e:
             logger.debug(f"Jetson GStreamer camera open failed: {e}")
 
-        logger.warning(f"No active camera hardware found on index {self.camera_index}.")
+        logger.warning(f"No active camera hardware found across indices {candidates}.")
         return False
 
     def capture_frame(self) -> Tuple[bool, Optional[Image.Image], Optional[bytes]]:
@@ -94,8 +125,12 @@ class CameraService:
 
         ret, frame = self._cap.read()
         if not ret or frame is None:
-            logger.warning("Failed to capture frame from camera.")
-            return False, None, None
+            logger.warning("Failed to capture frame from camera. Resetting handle for auto-reconnect.")
+            self.close()
+            mock_img = self._create_synthetic_preview()
+            buf = io.BytesIO()
+            mock_img.save(buf, format="JPEG")
+            return True, mock_img, buf.getvalue()
 
         # Resize to 640x480 target for Moondream
         if frame.shape[1] != self.target_width or frame.shape[0] != self.target_height:

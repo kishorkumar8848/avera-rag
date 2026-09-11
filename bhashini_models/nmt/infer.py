@@ -32,48 +32,54 @@ REQUIRED_MODELS = {"en-indic", "indic-en", "indic-indic"}
 class NMTInference:
 
     # -----------------------------------------------------
-    # Init → Load all models once
+    # Init → Lazy loading setup
     # -----------------------------------------------------
     def __init__(self, checkpoint_root="./checkpoints"):
-
         self.models = {}
+        self.checkpoint_root = checkpoint_root
 
         if not os.path.exists(checkpoint_root):
             raise RuntimeError(
                 f"Checkpoint folder not found: {checkpoint_root}"
             )
 
-        for folder in os.listdir(checkpoint_root):
+        logger.info(f"NMTInference initialized with root: {checkpoint_root}. Lazy model loading active.")
 
-            if folder not in REQUIRED_MODELS:
-                continue
+    def _get_model(self, name: str) -> Model:
+        """Lazily loads requested model on demand, managing GPU VRAM efficiently."""
+        if name in self.models:
+            return self.models[name]
 
-            model_path = os.path.join(
-                checkpoint_root,
-                folder,
-                "ct2_int8_model"
-            )
+        model_path = os.path.join(
+            self.checkpoint_root,
+            name,
+            "ct2_int8_model"
+        )
+        if not os.path.exists(model_path):
+            raise RuntimeError(f"Missing model path: {model_path}")
 
-            if not os.path.exists(model_path):
-                raise RuntimeError(
-                    f"Missing model path: {model_path}"
-                )
+        logger.info(f"Loading NMT model on demand: {name}...")
+        import torch
+        device = "cuda" if (torch.cuda.is_available() and os.environ.get("FORCE_CPU", "0") != "1") else "cpu"
 
-            logger.info(f"Loading NMT model: {folder}")
+        # On Jetson edge GPUs (8GB), maintain at most 1 active model in VRAM to prevent OOM
+        if device == "cuda" and len(self.models) >= 1:
+            for old_name in list(self.models.keys()):
+                logger.info(f"Unloading previous NMT model '{old_name}' from VRAM...")
+                del self.models[old_name]
+            try:
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
 
-            import torch
-            device = "cuda" if (torch.cuda.is_available() and os.environ.get("FORCE_CPU", "0") != "1") else "cpu"
-            self.models[folder] = Model(
-                model_path,
-                device=device,
-                input_lang_code_format="iso",
-                model_type="ctranslate2"
-            )
-
-        if not self.models:
-            raise RuntimeError("No NMT models loaded")
-
-        logger.info("All NMT models loaded successfully")
+        self.models[name] = Model(
+            model_path,
+            device=device,
+            input_lang_code_format="iso",
+            model_type="ctranslate2"
+        )
+        logger.info(f"NMT model '{name}' loaded successfully on {device}.")
+        return self.models[name]
 
     # -----------------------------------------------------
     # Translation Routing
@@ -86,22 +92,22 @@ class NMTInference:
             return text
 
         if s != "en" and t == "en":
-            return self.models["indic-en"] \
-                .paragraphs_batch_translate__multilingual(
-                    [[text, s, "en"]]
-                )[0]
+            model = self._get_model("indic-en")
+            return model.paragraphs_batch_translate__multilingual(
+                [[text, s, "en"]]
+            )[0]
 
         elif s == "en" and t != "en":
-            return self.models["en-indic"] \
-                .paragraphs_batch_translate__multilingual(
-                    [[text, "en", t]]
-                )[0]
+            model = self._get_model("en-indic")
+            return model.paragraphs_batch_translate__multilingual(
+                [[text, "en", t]]
+            )[0]
 
         elif s != "en" and t != "en":
-            return self.models["indic-indic"] \
-                .paragraphs_batch_translate__multilingual(
-                    [[text, s, t]]
-                )[0]
+            model = self._get_model("indic-indic")
+            return model.paragraphs_batch_translate__multilingual(
+                [[text, s, t]]
+            )[0]
 
         else:
             return text

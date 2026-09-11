@@ -117,7 +117,8 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
             response_schema, qwen_ms = qwen_backend.generate_clinical_guidance(
                 query=english_query,
                 retrieved_context=retrieved_docs[:settings.TOP_K_CONTEXT],
-                patient_profile=self.patient_profile
+                patient_profile=self.patient_profile,
+                language=self.language
             )
             latencies["qwen_ms"] = qwen_ms
 
@@ -317,7 +318,8 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
                 query=english_query,
                 retrieved_context=retrieved_docs[:settings.TOP_K_CONTEXT],
                 visual_observations=observations,
-                patient_profile=self.patient_profile
+                patient_profile=self.patient_profile,
+                language=self.language
             )
             latencies["qwen_ms"] = qwen_ms
 
