@@ -36,12 +36,16 @@ class NMTInference:
     # -----------------------------------------------------
     def __init__(self, checkpoint_root="./checkpoints"):
         self.models = {}
-        self.checkpoint_root = checkpoint_root
-
         if not os.path.exists(checkpoint_root):
-            raise RuntimeError(
-                f"Checkpoint folder not found: {checkpoint_root}"
-            )
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            rel_ckpt = os.path.join(script_dir, "checkpoints")
+            if os.path.exists(rel_ckpt):
+                checkpoint_root = rel_ckpt
+            else:
+                raise RuntimeError(
+                    f"Checkpoint folder not found: {checkpoint_root}"
+                )
+        self.checkpoint_root = checkpoint_root
 
         logger.info(f"NMTInference initialized with root: {checkpoint_root}. Lazy model loading active.")
 
