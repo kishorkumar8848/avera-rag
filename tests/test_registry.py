@@ -104,3 +104,19 @@ def test_report_html_generation():
     assert "National Health Mission" in html
     assert "Drink ORS fluids" in html
     assert "Sundarapuram Primary Health Centre" in html
+
+
+def test_patient_registry_get_patient():
+    p1 = patient_registry.get_patient("CITIZEN-001")
+    assert p1 is not None
+    assert p1.name == "Kishor Kumar"
+
+    p2 = patient_registry.get_patient("P001")
+    assert p2 is not None
+    assert p2.name == "Kishor Kumar"
+
+    p_kamala = patient_registry.get_patient("kamala")
+    assert p_kamala is not None
+    assert p_kamala.name == "Kamala Devi"
+    assert p_kamala.age == 50
+

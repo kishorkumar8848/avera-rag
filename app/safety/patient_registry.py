@@ -125,6 +125,27 @@ class PatientRegistry:
                 return p
         return None
 
+    def get_patient(self, patient_id: str) -> Optional[PatientRecord]:
+        """Convenience accessor matching ID, search query, or index fallback."""
+        if not patient_id:
+            return self._patients[0] if self._patients else None
+        found = self.get_by_id(patient_id)
+        if found:
+            return found
+        # Check P001 -> CITIZEN-001 mapping
+        pid_upper = patient_id.upper()
+        if pid_upper.startswith("P") and pid_upper[1:].isdigit():
+            num = int(pid_upper[1:])
+            target_id = f"CITIZEN-{num:03d}"
+            found = self.get_by_id(target_id)
+            if found:
+                return found
+        # Search by token (e.g. 'kishor')
+        res = self.search(patient_id, limit=1)
+        if res:
+            return res[0]
+        return self._patients[0] if self._patients else None
+
     def search(self, query: str, limit: int = 10) -> List[PatientRecord]:
         """
         Searches patients by name, phone, ABHA ID, village, or age.
