@@ -283,6 +283,10 @@ class AD8232Driver:
             logger.debug(f"Jetson.GPIO init note: {e}")
             self.gpio_ready = False
 
+    @property
+    def is_present(self) -> bool:
+        return self.ads1115.is_present
+
     def are_leads_connected(self) -> bool:
         """
         Checks if electrode leads are properly attached to patient's skin.
