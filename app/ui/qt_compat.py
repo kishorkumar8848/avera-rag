@@ -24,6 +24,10 @@ QWidget = _Dummy
 QObject = _Dummy
 QRunnable = _Dummy
 QDialog = _Dummy
+QPainter = _Dummy
+QPen = _Dummy
+QBrush = _Dummy
+QColor = _Dummy
 Signal = None
 Slot = None
 QTextDocument = None
@@ -40,7 +44,7 @@ try:
         QScrollArea, QProgressBar, QTextEdit, QLineEdit, QComboBox,
         QDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
     )
-    from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QColor, QTextDocument
+    from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QColor, QTextDocument, QPainter, QPen, QBrush
     try:
         from PySide6.QtPrintSupport import QPrinter, QPrintDialog, QPrinterInfo
     except ImportError:
@@ -57,7 +61,7 @@ except ImportError:
             QScrollArea, QProgressBar, QTextEdit, QLineEdit, QComboBox,
             QDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
         )
-        from PyQt6.QtGui import QImage, QPixmap, QFont, QIcon, QColor, QTextDocument
+        from PyQt6.QtGui import QImage, QPixmap, QFont, QIcon, QColor, QTextDocument, QPainter, QPen, QBrush
         try:
             from PyQt6.QtPrintSupport import QPrinter, QPrintDialog, QPrinterInfo
         except ImportError:
@@ -74,7 +78,7 @@ except ImportError:
                 QScrollArea, QProgressBar, QTextEdit, QLineEdit, QComboBox,
                 QDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
             )
-            from PyQt5.QtGui import QImage, QPixmap, QFont, QIcon, QColor, QTextDocument
+            from PyQt5.QtGui import QImage, QPixmap, QFont, QIcon, QColor, QTextDocument, QPainter, QPen, QBrush
             try:
                 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog, QPrinterInfo
             except ImportError:
