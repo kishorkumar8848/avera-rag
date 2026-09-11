@@ -45,7 +45,7 @@ class MMSTTSService:
         self.active_model = None
         self.active_tokenizer = None
         self._lock = threading.Lock()
-        self.device = "cuda" if (HAS_VITS and torch.cuda.is_available() and os.environ.get("FORCE_CPU", "0") != "1") else "cpu"
+        self.device = os.environ.get("MMS_TTS_DEVICE", "cpu")
 
     @property
     def is_available(self) -> bool:
@@ -69,18 +69,20 @@ class MMSTTSService:
 
         try:
             logger.info(f"Loading Neural MMS-TTS model for '{lang}' ({model_id}) on {self.device}...")
-            # Release previous model from GPU memory
+            # Release previous model from memory
             if self.active_model is not None:
                 del self.active_model
                 del self.active_tokenizer
                 self.active_model = None
                 self.active_tokenizer = None
                 if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                    try:
+                        torch.cuda.empty_cache()
+                    except Exception:
+                        pass
 
-            # Attempt loading from local offline cache or model identifier
-            tokenizer = AutoTokenizer.from_pretrained(str(lang_cache_dir) if (lang_cache_dir / "tokenizer_config.json").exists() else model_id, cache_dir=str(lang_cache_dir))
-            model = VitsModel.from_pretrained(str(lang_cache_dir) if (lang_cache_dir / "config.json").exists() else model_id, cache_dir=str(lang_cache_dir))
+            tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
+            model = VitsModel.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
 
             model = model.to(self.device)
             model.eval()
