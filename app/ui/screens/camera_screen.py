@@ -21,7 +21,7 @@ from app.models.moondream_backend import moondream_backend
 from app.safety.patient_registry import patient_registry, PatientRecord
 from app.ui.workers import MultimodalPipelineWorker
 from app.rag.hybrid_retriever import HybridRetriever
-from app.ui.report_printer import report_printer
+from app.ui.report_printer import print_clinical_report
 
 
 class CameraScreen(QWidget if HAS_QT else object):
@@ -465,7 +465,7 @@ class CameraScreen(QWidget if HAS_QT else object):
         p_data = self.active_patient.to_dict() if self.active_patient else {
             "name": "General Resident", "age": 30, "gender": "Unknown", "village": "Sundarapuram"
         }
-        report_printer.print_clinical_report(
+        print_clinical_report(
             parent_widget=self,
             patient_data=p_data,
             clinical_result=self.last_result,
