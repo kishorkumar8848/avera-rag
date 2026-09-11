@@ -42,6 +42,7 @@ class CameraScreen(QWidget if HAS_QT else object):
         self.captured_image: Optional[Image.Image] = None
         self.visual_observations = []
         self.last_result: Optional[Dict[str, Any]] = None
+        self.on_new_assessment: Optional[Callable[[], None]] = None
 
         # Viewfinder Live Stream Timer (~25 FPS)
         self.viewfinder_timer = QTimer(self) if HAS_QT else None
@@ -517,7 +518,7 @@ class CameraScreen(QWidget if HAS_QT else object):
         print_btn.clicked.connect(self._print_clinical_slip)
         btn_layout.addWidget(print_btn)
 
-        new_btn = QPushButton("🔄 Finish & New Assessment")
+        new_btn = QPushButton("🔄 New Assessment")
         new_btn.setObjectName("NewAssessmentBtn")
         new_btn.setCursor(Qt.PointingHandCursor)
         new_btn.clicked.connect(self._finish_and_reset_assessment)
@@ -548,6 +549,12 @@ class CameraScreen(QWidget if HAS_QT else object):
         )
 
     def _finish_and_reset_assessment(self):
+        """Cleans up current assessment state and redirects to Home like fresh."""
+        self._reset_screen_state()
+        if hasattr(self, "on_new_assessment") and self.on_new_assessment:
+            self.on_new_assessment()
+
+    def _reset_screen_state(self):
         """Cleans up audio, unfreezes viewfinder, and readies kiosk for next villager."""
         tts_service.stop_speaking()
         self.last_result = None
@@ -564,8 +571,9 @@ class CameraScreen(QWidget if HAS_QT else object):
         self.obs_text.setText("Live camera feed active. Aim at patient's condition and click 'Capture Photo'.")
         self.capture_btn.setText("📸 Capture Photo")
         self.capture_btn.setObjectName("PrimaryBtn")
-        self.capture_btn.style().unpolish(self.capture_btn)
-        self.capture_btn.style().polish(self.capture_btn)
+        if hasattr(self.capture_btn, "style"):
+            self.capture_btn.style().unpolish(self.capture_btn)
+            self.capture_btn.style().polish(self.capture_btn)
 
         self.status_label.setText("Step 1: Capture Photo")
         self.status_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #2563EB;")
@@ -573,7 +581,7 @@ class CameraScreen(QWidget if HAS_QT else object):
         self.mic_btn.setEnabled(False)
         self.mic_btn.setStyleSheet("")
         self.start_viewfinder()
-        logger.info("Camera assessment finished and reset for next citizen consultation.")
+        logger.info("Camera assessment screen reset.")
 
     def _replay_tts(self):
         if self.last_result:

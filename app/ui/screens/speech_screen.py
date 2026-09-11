@@ -152,6 +152,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.thread_pool = QThreadPool.globalInstance() if HAS_QT else None
         self.last_result: Optional[Dict[str, Any]] = None
         self.on_patient_changed = None
+        self.on_new_assessment: Optional[Callable[[], None]] = None
 
         # Default to Kishor Kumar if present in registry, else first record
         default_list = patient_registry.search("kishor")
@@ -471,13 +472,26 @@ class SpeechScreen(QWidget if HAS_QT else object):
             r_body.setWordWrap(True)
             r_layout.addWidget(r_body)
 
-            # Big prominent Retake Action Button
+            # Action Buttons Row: Retake Symptoms + New Assessment
+            btn_box = QWidget()
+            btn_layout = QHBoxLayout(btn_box)
+            btn_layout.setContentsMargins(0, 6, 0, 0)
+            btn_layout.setSpacing(14)
+
             btn_text = res.get("button_text", "🎤 மீண்டும் பேசவும் (Click to Retake)")
             retake_action_btn = QPushButton(btn_text)
             retake_action_btn.setObjectName("RetakeBtn")
             retake_action_btn.setCursor(Qt.PointingHandCursor)
             retake_action_btn.clicked.connect(self._start_recording)
-            r_layout.addWidget(retake_action_btn)
+            btn_layout.addWidget(retake_action_btn, stretch=3)
+
+            new_assess_btn = QPushButton("🔄 New Assessment")
+            new_assess_btn.setObjectName("NewAssessmentBtn")
+            new_assess_btn.setCursor(Qt.PointingHandCursor)
+            new_assess_btn.clicked.connect(self._start_new_assessment)
+            btn_layout.addWidget(new_assess_btn, stretch=2)
+
+            r_layout.addWidget(btn_box)
 
             self.results_layout.addWidget(retake_frame)
 
@@ -694,7 +708,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         action_layout.addWidget(print_btn)
 
         # Finish & Start New Assessment Button
-        new_assess_btn = QPushButton("🔄 Finish & Start New Assessment")
+        new_assess_btn = QPushButton("🔄 New Assessment")
         new_assess_btn.setObjectName("NewAssessmentBtn")
         new_assess_btn.setCursor(Qt.PointingHandCursor)
         new_assess_btn.clicked.connect(self._start_new_assessment)
@@ -721,7 +735,13 @@ class SpeechScreen(QWidget if HAS_QT else object):
                 QMessageBox.information(self, "Clinical Assessment Printout", msg)
 
     def _start_new_assessment(self):
-        """Cleans up current assessment state and prepares for next villager."""
+        """Cleans up current assessment state and redirects to Home like fresh."""
+        self._reset_screen_state()
+        if hasattr(self, "on_new_assessment") and self.on_new_assessment:
+            self.on_new_assessment()
+
+    def _reset_screen_state(self):
+        """Cleans up screen widgets for fresh consultation."""
         tts_service.stop_speaking()
         self.last_result = None
         self.replay_btn.setVisible(False)
@@ -740,7 +760,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.mic_btn.setText("🎤 Click to Speak (10s)")
         self.mic_btn.setEnabled(True)
         self.mic_btn.setStyleSheet("")
-        logger.info("Assessment finished and reset for next citizen consultation.")
+        logger.info("Speech screen state reset for fresh consultation.")
 
     def _replay_tts(self):
         """Re-synthesizes/plays the complete clinical guidance audio."""

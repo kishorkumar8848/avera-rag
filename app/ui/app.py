@@ -86,6 +86,12 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.back_btn.clicked.connect(self.navigate_back)
         bar_layout.addWidget(self.back_btn)
 
+        self.new_assess_btn = QPushButton("🔄 New Assessment")
+        self.new_assess_btn.setObjectName("NavBtn")
+        self.new_assess_btn.setCursor(Qt.PointingHandCursor)
+        self.new_assess_btn.clicked.connect(self.start_fresh_assessment)
+        bar_layout.addWidget(self.new_assess_btn)
+
         # Medical Cross Icon
         cross_icon = QLabel("✚")
         cross_icon.setStyleSheet("font-size: 28px; font-weight: 900; color: #2563EB; background: transparent;")
@@ -192,12 +198,14 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         # Screen 4: Speech Assistant Screen
         self.screen_speech = SpeechScreen(retriever=self.retriever)
         self.screen_speech.on_patient_changed = self._on_screen_patient_changed
+        self.screen_speech.on_new_assessment = self.start_fresh_assessment
         if hasattr(self.screen_speech, "set_patient") and self.active_patient:
             self.screen_speech.set_patient(self.active_patient)
         self.stack.addWidget(self.screen_speech)
 
         # Screen 5: Camera + Speech Screen
         self.screen_camera = CameraScreen(retriever=self.retriever)
+        self.screen_camera.on_new_assessment = self.start_fresh_assessment
         if hasattr(self.screen_camera, "set_patient") and self.active_patient:
             self.screen_camera.set_patient(self.active_patient)
         self.stack.addWidget(self.screen_camera)
@@ -293,11 +301,56 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         if hasattr(self.screen_camera, "start_viewfinder"):
             self.screen_camera.start_viewfinder()
 
-    def navigate_home(self):
+    def start_fresh_assessment(self):
+        """
+        Resets the entire kiosk state (audio, camera, vitals, patient, screen widgets)
+        and redirects back to the Home page (Screen 0) for a completely fresh consultation.
+        """
+        try:
+            from app.models.bhashini_tts import tts_service
+            tts_service.stop_speaking()
+        except Exception:
+            pass
+
+        # 1. Stop camera viewfinder
         if hasattr(self, "screen_camera") and hasattr(self.screen_camera, "stop_viewfinder"):
             self.screen_camera.stop_viewfinder()
+
+        # 2. Reset SpeechScreen widgets
+        if hasattr(self, "screen_speech") and hasattr(self.screen_speech, "_reset_screen_state"):
+            self.screen_speech._reset_screen_state()
+
+        # 3. Reset CameraScreen widgets
+        if hasattr(self, "screen_camera") and hasattr(self.screen_camera, "_reset_screen_state"):
+            self.screen_camera._reset_screen_state()
+
+        # 4. Reset VitalsScreen & SensorManager
+        try:
+            from app.hardware.sensor_manager import sensor_manager
+            sensor_manager.reset_readings()
+        except Exception:
+            pass
+        self.active_vitals = None
+        if hasattr(self, "screen_vitals") and hasattr(self.screen_vitals, "_reset_all"):
+            self.screen_vitals._reset_all()
+
+        # 5. Reset CitizenScreen
+        if hasattr(self, "screen_citizen") and hasattr(self.screen_citizen, "reset_selection"):
+            self.screen_citizen.reset_selection()
+
+        # 6. Reset active patient to default
+        default_list = patient_registry.search("kishor")
+        self.active_patient = default_list[0] if default_list else None
+        self._refresh_patient_display()
+
+        # 7. Redirect to Home (Screen 0: Language Selection)
         self.stack.setCurrentIndex(0)
         self.update_nav_buttons()
+        logger.info("AVERA Kiosk reset completely fresh for new citizen assessment.")
+
+    def navigate_home(self):
+        """Redirects to Home page with a completely fresh state."""
+        self.start_fresh_assessment()
 
     def navigate_back(self):
         curr = self.stack.currentIndex()
@@ -324,6 +377,8 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         curr = self.stack.currentIndex()
         self.home_btn.setEnabled(curr != 0)
         self.back_btn.setEnabled(curr != 0)
+        if hasattr(self, "new_assess_btn"):
+            self.new_assess_btn.setEnabled(curr != 0)
 
     def toggle_fullscreen(self):
         """Toggles between Fullscreen and Maximized Window."""

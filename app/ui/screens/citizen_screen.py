@@ -149,3 +149,12 @@ class CitizenScreen(QWidget if HAS_QT else object):
             self.selected_patient = self.current_records[row]
             if self.on_citizen_selected:
                 self.on_citizen_selected(self.selected_patient)
+
+    def reset_selection(self):
+        """Clears search filter and selection for fresh resident entry."""
+        if hasattr(self, "search_edit"):
+            self.search_edit.clear()
+        if hasattr(self, "table"):
+            self.table.clearSelection()
+        self.selected_patient = None
+        self._populate_table(patient_registry.get_all())
