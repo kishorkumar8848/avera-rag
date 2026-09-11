@@ -126,6 +126,21 @@ class ASRService:
         if not wav_bytes or len(wav_bytes) < 100:
             return "", 0.0, (time.time() - start_time) * 1000.0
 
+        # Check audio signal energy before invoking heavy neural networks
+        # Flatline silence / disconnected microphone / near-zero energy is bypassed immediately
+        try:
+            import soundfile as sf
+            with io.BytesIO(wav_bytes) as _f:
+                _samples, _ = sf.read(_f, dtype="float32")
+                if len(_samples) > 0:
+                    _rms = float(np.sqrt(np.mean(_samples ** 2)))
+                    _peak = float(np.max(np.abs(_samples)))
+                    if _rms < 0.0025 and _peak < 0.007:
+                        logger.info(f"Audio energy near zero (RMS={_rms:.6f}, Peak={_peak:.6f}). Bypassing ASR inference (silence/muted mic).")
+                        return "", 0.0, (time.time() - start_time) * 1000.0
+        except Exception as ex_eng:
+            logger.debug(f"Audio energy check exception: {ex_eng}")
+
         # Attempt 1: Local Faster-Whisper with Medical Initial Prompt (Best accuracy across ta, hi, gu, en, ml)
         if self.whisper_model is not None or self.load_whisper_benchmark("base") or self.load_whisper_benchmark("tiny"):
             try:
@@ -137,7 +152,12 @@ class ASRService:
                     io.BytesIO(wav_bytes),
                     language=whisper_lang,
                     initial_prompt=initial_prompt,
-                    beam_size=2
+                    beam_size=2,
+                    vad_filter=True,
+                    vad_parameters=dict(min_silence_duration_ms=400),
+                    condition_on_previous_text=False,
+                    no_speech_threshold=0.5,
+                    compression_ratio_threshold=2.4
                 )
                 text = " ".join([s.text for s in segments]).strip()
                 # Clean accidental prompt echoing
@@ -150,6 +170,17 @@ class ASRService:
                     if text.startswith(prefix):
                         text = text[len(prefix):].strip().lstrip(",. ")
 
+                # Discard common generic Whisper hallucination artifacts
+                HALLUCINATIONS = [
+                    "thank you very much", "thank you for watching", "thank you", "thanks for watching",
+                    "subtitles by", "please subscribe", "amara.org", "subscribe", "bye", "mbc",
+                    "watching"
+                ]
+                text_clean = text.lower().strip().rstrip(".!?,")
+                if text_clean in HALLUCINATIONS:
+                    logger.info(f"Discarded Whisper hallucination token: '{text}'")
+                    return "", 0.0, (time.time() - start_time) * 1000.0
+
                 if text:
                     from app.models.bhashini_nmt import NMTService
                     text = NMTService._normalize_query(text, whisper_lang)
@@ -157,7 +188,6 @@ class ASRService:
                     latency_ms = (time.time() - start_time) * 1000.0
                     logger.info(f"Offline Faster-Whisper transcribed '{text}' [{whisper_lang}] ({latency_ms:.1f}ms).")
                     return text, conf, latency_ms
-
 
             except Exception as e:
                 logger.error(f"Offline Faster-Whisper error: {e}")

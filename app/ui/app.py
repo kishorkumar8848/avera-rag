@@ -86,55 +86,24 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.back_btn.clicked.connect(self.navigate_back)
         bar_layout.addWidget(self.back_btn)
 
-        self.new_assess_btn = QPushButton("🔄 New Assessment")
+        self.new_assess_btn = QPushButton("🔄 New")
         self.new_assess_btn.setObjectName("NavBtn")
         self.new_assess_btn.setCursor(Qt.PointingHandCursor)
         self.new_assess_btn.clicked.connect(self.start_fresh_assessment)
         bar_layout.addWidget(self.new_assess_btn)
 
-        # Medical Cross Icon
+        # Medical Cross Icon + Brand
         cross_icon = QLabel("✚")
-        cross_icon.setStyleSheet("font-size: 28px; font-weight: 900; color: #2563EB; background: transparent;")
+        cross_icon.setStyleSheet("font-size: 24px; font-weight: 900; color: #2563EB; background: transparent;")
         bar_layout.addWidget(cross_icon)
-
-        # Left Branding Block: AVERA + Medical AI Assistant
-        brand_box = QWidget()
-        brand_box.setStyleSheet("background: transparent;")
-        brand_layout = QVBoxLayout(brand_box)
-        brand_layout.setContentsMargins(0, 8, 0, 8)
-        brand_layout.setSpacing(0)
 
         self.title_lbl = QLabel("AVERA")
         self.title_lbl.setObjectName("TopBarBrand")
-        brand_layout.addWidget(self.title_lbl)
+        bar_layout.addWidget(self.title_lbl)
 
-        self.subtitle_lbl = QLabel("Medical AI Assistant")
+        self.subtitle_lbl = QLabel("AI")
         self.subtitle_lbl.setObjectName("TopBarTagline")
-        brand_layout.addWidget(self.subtitle_lbl)
-
-        bar_layout.addWidget(brand_box)
-
-        # Vertical Divider Line
-        divider = QFrame()
-        divider.setObjectName("TopBarDivider")
-        bar_layout.addWidget(divider)
-
-        # Kiosk Village Subheader
-        sub_box = QWidget()
-        sub_box.setStyleSheet("background: transparent;")
-        sub_layout = QVBoxLayout(sub_box)
-        sub_layout.setContentsMargins(0, 8, 0, 8)
-        sub_layout.setSpacing(1)
-
-        kiosk_title = QLabel("ASHA Village Health Kiosk")
-        kiosk_title.setObjectName("TopBarSubHeader")
-        sub_layout.addWidget(kiosk_title)
-
-        kiosk_motto = QLabel("Accessible Healthcare for a Healthier Tomorrow")
-        kiosk_motto.setObjectName("TopBarMotto")
-        sub_layout.addWidget(kiosk_motto)
-
-        bar_layout.addWidget(sub_box)
+        bar_layout.addWidget(self.subtitle_lbl)
 
         bar_layout.addStretch()
 
@@ -153,19 +122,20 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         bar_layout.addWidget(self.patient_btn)
 
         # Language Badge
-        self.lang_badge = QLabel("Lang: EN")
+        self.lang_badge = QLabel("EN")
         self.lang_badge.setObjectName("TopBarTelemetry")
         bar_layout.addWidget(self.lang_badge)
 
         # Fullscreen Toggle Button
-        self.fs_btn = QPushButton("⛶ Fullscreen")
+        self.fs_btn = QPushButton("⛶")
         self.fs_btn.setObjectName("NavBtn")
         self.fs_btn.setCursor(Qt.PointingHandCursor)
+        self.fs_btn.setToolTip("Toggle Fullscreen")
         self.fs_btn.clicked.connect(self.toggle_fullscreen)
         bar_layout.addWidget(self.fs_btn)
 
-        # Hardware Telemetry Badge (RAM & CPU)
-        self.telemetry_lbl = QLabel("RAM: -- | CPU: --")
+        # Hardware Telemetry Badge (RAM)
+        self.telemetry_lbl = QLabel("RAM: --")
         self.telemetry_lbl.setObjectName("TopBarTelemetry")
         bar_layout.addWidget(self.telemetry_lbl)
 
@@ -229,16 +199,15 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
     def _update_clock(self):
         from datetime import datetime
         now = datetime.now()
-        # Formatted e.g. "Sep 11, 2026  09:02 AM"
-        self.clock_lbl.setText(now.strftime("%b %d, %Y  %I:%M %p"))
+        # Formatted e.g. "Sep 11, 15:30"
+        self.clock_lbl.setText(now.strftime("%b %d, %H:%M"))
 
     def _update_telemetry(self):
         stats = monitor.get_stats()
         ram_pct = stats.get("ram_percent", 0.0)
-        cpu_pct = stats.get("cpu_percent", 0.0)
         temp_c = stats.get("temperature_c")
-        temp_str = f" | {temp_c}°C" if temp_c else ""
-        self.telemetry_lbl.setText(f"RAM: {ram_pct:.0f}% | CPU: {cpu_pct:.0f}%{temp_str}")
+        temp_str = f" {temp_c:.0f}°C" if temp_c else ""
+        self.telemetry_lbl.setText(f"RAM {ram_pct:.0f}%{temp_str}")
 
     def _open_citizen_dialog(self):
         dialog = CitizenSearchDialog(parent=self, on_selected=self._set_active_patient)
@@ -255,13 +224,16 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
             self.screen_camera.set_patient(patient)
 
     def _on_screen_patient_changed(self, summary_text: str):
-        self.patient_btn.setText(f"👤 {summary_text}")
+        short = summary_text.split("(")[0].strip() if "(" in summary_text else summary_text
+        self.patient_btn.setText(f"👤 {short}")
 
     def _refresh_patient_display(self):
         if self.active_patient:
-            badge = f"👤 {self.active_patient.name} ({self.active_patient.age_display_badge})"
+            name_parts = self.active_patient.name.split()
+            short_name = name_parts[0] if name_parts else "Citizen"
+            badge = f"👤 {short_name} ({self.active_patient.age_display_badge})"
         else:
-            badge = "👤 Select Citizen"
+            badge = "👤 Citizen"
         self.patient_btn.setText(badge)
 
     def on_language_selected(self, lang_code: str):

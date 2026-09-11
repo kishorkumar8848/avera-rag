@@ -67,6 +67,40 @@ QLabel#TopBarTelemetry {
     border-radius: 6px;
 }
 
+QPushButton#NavBtn {
+    min-height: 40px;
+    max-height: 40px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    background-color: #F8FAFC;
+    border: 1px solid #CBD5E1;
+}
+
+QPushButton#NavBtn:hover {
+    background-color: #EFF6FF;
+    border-color: #3B82F6;
+    color: #1D4ED8;
+}
+
+QPushButton#PatientBadgeBtn {
+    min-height: 40px;
+    max-height: 40px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    background-color: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1D4ED8;
+}
+
+QPushButton#PatientBadgeBtn:hover {
+    background-color: #DBEAFE;
+    border-color: #2563EB;
+}
+
 /* Push Buttons - Touch Friendly (min 52-64px height) */
 QPushButton {
     background-color: #FFFFFF;

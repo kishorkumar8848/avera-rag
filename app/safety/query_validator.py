@@ -76,12 +76,62 @@ LOCALIZED_RETAKE_MESSAGES = {
     }
 }
 
+LOCALIZED_SILENCE_MESSAGES = {
+    "ta": {
+        "title": "மைக்ரோஃபோன் ஒலி பதிவு செய்யப்படவில்லை",
+        "description": "மைக்ரோஃபோனிலிருந்து உங்கள் குரல் பதிவு செய்யப்படவில்லை. Type-C / USB மைக்ரோஃபோன் சரியாக இணைக்கப்பட்டுள்ளதா என சரிபார்க்கவும்.",
+        "action": "USB / Type-C மைக்ரோஃபோனை சரிபார்த்து, மைக்கை அருகில் வைத்து மீண்டும் பேசவும்.",
+        "spoken": "குரல் பதிவு செய்யப்படவில்லை. மைக்ரோஃபோனை சரிபார்த்து மீண்டும் பேசவும்.",
+        "btn_text": "🎤 மீண்டும் பேசவும் (Click to Speak)"
+    },
+    "hi": {
+        "title": "माइक से आवाज़ रिकॉर्ड नहीं हुई",
+        "description": "माइक से आपकी आवाज़ रिकॉर्ड नहीं हो सकी। कृपया Type-C / USB माइक कनेक्शन की जांच करें।",
+        "action": "कृपया माइक के पास आकर स्पष्ट आवाज़ में दोबारा बोलें।",
+        "spoken": "आवाज़ रिकॉर्ड नहीं हुई। कृपया माइक के पास बोलें।",
+        "btn_text": "🎤 दोबारा बोलें (Click to Speak)"
+    },
+    "gu": {
+        "title": "માઈક્રોફોનમાંથી અવાજ પકડાયો નથી",
+        "description": "માઈક્રોફોનમાંથી તમારો અવાજ પકડાયો નથી. કૃપા કરીને Type-C / USB માઈક્રોફોન તપાસો.",
+        "action": "કૃપા કરીને માઈક્રોફોનની નજીક આવીને ફરીથી બોલો.",
+        "spoken": "અવાજ પકડાયો નથી. કૃપા કરીને ફરીથી બોલો.",
+        "btn_text": "🎤 ફરીથી બોલો (Click to Speak)"
+    },
+    "en": {
+        "title": "No Voice Detected by Microphone",
+        "description": "The microphone did not register vocal audio. Please verify your Type-C / USB microphone is securely plugged in.",
+        "action": "Check your microphone connection, speak closer to the mic, and try again.",
+        "spoken": "No voice was recorded. Please check the microphone and speak again.",
+        "btn_text": "🎤 Click to Speak (Retake)"
+    }
+}
+
 
 class QueryValidator:
     """
     Validates frontline speech queries before dispatching to heavy Medical RAG and LLM.
     Prevents hallucination and repetition loops on casual greetings, empty noise, or non-medical speech.
     """
+
+    @classmethod
+    def build_silence_payload(cls, language: str = "en") -> Dict[str, Any]:
+        """Constructs dedicated silence / uncaptured microphone payload."""
+        lang = language.lower().strip()
+        meta = LOCALIZED_SILENCE_MESSAGES.get(lang, LOCALIZED_SILENCE_MESSAGES["en"])
+        return {
+            "needs_retake": True,
+            "is_emergency": False,
+            "query": "",
+            "reason": "Microphone silence / no voice energy detected",
+            "title": meta["title"],
+            "summary": f"{meta['description']}\n\n{meta['action']}",
+            "spoken_text": meta["spoken"],
+            "button_text": meta["btn_text"],
+            "recommended_actions": [meta["action"]],
+            "warning_signs": [],
+            "referral": ""
+        }
 
     @classmethod
     def validate_clinical_query(

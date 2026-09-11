@@ -70,6 +70,31 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
             query_text, asr_conf, asr_ms = asr_service.transcribe(self.audio_data, language=self.language)
             latencies["asr_ms"] = asr_ms
 
+            # 1b. Check for Empty Speech / Disconnected or Muted Microphone
+            if not query_text.strip():
+                logger.info(f"No speech detected in audio recording (ASR latency: {asr_ms:.1f}ms). Prompting user to check mic.")
+                self._emit_status("⚠️ குரல் பதிவு செய்யப்படவில்லை / Mic silent")
+                silence_payload = QueryValidator.build_silence_payload(language=self.language)
+
+                # Speak friendly guidance in patient's language
+                tts_service.speak_async(
+                    text=silence_payload["spoken_text"],
+                    language=self.language,
+                    on_finished=lambda: self._emit_status("Ready")
+                )
+
+                total_ms = (time.time() - start_total) * 1000.0
+                silence_payload["patient_profile"] = self.patient_profile
+                silence_payload["latencies"] = latencies
+                silence_payload["total_ms"] = round(total_ms, 1)
+
+                if self.signals:
+                    try:
+                        self.signals.finished.emit(silence_payload)
+                    except RuntimeError:
+                        pass
+                return
+
             # 2. Deterministic Medical Safety Guard (Red Flags)
             is_emergency, categories, escalation_msg = red_flag_detector.detect_red_flags(query_text)
             if is_emergency and escalation_msg:

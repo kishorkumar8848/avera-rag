@@ -31,10 +31,54 @@ class VADDetector:
         return bool(rms > self.energy_threshold)
 
 
+def find_best_input_device() -> Optional[int]:
+    """
+    Intelligently discovers the best input capture device:
+    1. Scans sounddevice devices for external USB/Type-C microphone or webcam capture.
+    2. Prioritizes devices with keywords: 'usb', 'type-c', 'mic', 'audio', 'headset', 'webcam', 'camera', 'ab13x', 'jieli'.
+    3. Sets PulseAudio default-source and ensures capture volume is unmuted and 100%.
+    """
+    if not HAS_SOUNDDEVICE:
+        return None
+    try:
+        devices = sd.query_devices()
+        usb_candidates = []
+
+        for idx, dev in enumerate(devices):
+            max_in = dev.get("max_input_channels", 0)
+            if max_in <= 0:
+                continue
+            name = dev.get("name", "").lower()
+
+            # Check if this is an external USB / Type-C / microphone hardware device
+            is_usb = any(k in name for k in ["usb", "type-c", "typec", "mic", "headset", "ab13x", "uac", "jieli", "camera", "webcam"])
+            if is_usb and "monitor" not in name:
+                usb_candidates.append((idx, dev))
+
+        # Unmute and set capture volume to 100% on Linux
+        import subprocess, shutil
+        if shutil.which("pactl"):
+            try:
+                subprocess.run(["pactl", "set-source-mute", "@DEFAULT_SOURCE@", "0"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+                subprocess.run(["pactl", "set-source-volume", "@DEFAULT_SOURCE@", "100%"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            except Exception:
+                pass
+
+        if usb_candidates:
+            best_idx, best_dev = usb_candidates[0]
+            logger.info(f"Selected USB/Type-C audio input device: [{best_idx}] {best_dev['name']}")
+            return best_idx
+
+        return None
+    except Exception as e:
+        logger.debug(f"Device discovery fallback: {e}")
+        return None
+
+
 class AudioRecorder:
     """
     Records mono 16kHz audio from local microphone directly into memory buffers.
-    Avoids redundant disk I/O.
+    Avoids redundant disk I/O. Automatically detects USB/Type-C microphone hardware.
     """
 
     def __init__(self, sample_rate: int = 16000, channels: int = 1):
@@ -48,6 +92,8 @@ class AudioRecorder:
         self._frames = []
         self._stream: Optional[object] = None
         self._lock = threading.Lock()
+        self.last_rms: float = 0.0
+        self.last_peak: float = 0.0
 
     def start_recording(self):
         """Starts streaming microphone audio into an in-memory frame buffer."""
@@ -56,23 +102,38 @@ class AudioRecorder:
                 return
             self._frames = []
             self._is_recording = True
+            self.last_rms = 0.0
+            self.last_peak = 0.0
 
             if not HAS_SOUNDDEVICE:
                 logger.warning("sounddevice not available. Using mock audio recorder.")
                 return
 
             try:
+                device_idx = find_best_input_device()
                 self._stream = sd.InputStream(
                     samplerate=self.sample_rate,
                     channels=self.channels,
                     dtype="float32",
+                    device=device_idx,
                     callback=self._audio_callback
                 )
                 self._stream.start()
-                logger.info(f"Audio recording started at {self.sample_rate}Hz mono.")
+                dev_info = f"device={device_idx}" if device_idx is not None else "default device"
+                logger.info(f"Audio recording started at {self.sample_rate}Hz mono ({dev_info}).")
             except Exception as e:
-                logger.error(f"Failed to start sounddevice recording: {e}. Falling back to mock recorder.")
-                self._stream = None
+                logger.error(f"Failed to start sounddevice recording: {e}. Retrying default input...")
+                try:
+                    self._stream = sd.InputStream(
+                        samplerate=self.sample_rate,
+                        channels=self.channels,
+                        dtype="float32",
+                        callback=self._audio_callback
+                    )
+                    self._stream.start()
+                except Exception as ex2:
+                    logger.error(f"Default input recording failed: {ex2}")
+                    self._stream = None
 
     def _audio_callback(self, indata, frames, time_info, status):
         """Streaming callback appending PCM frames in memory."""
@@ -86,6 +147,7 @@ class AudioRecorder:
         Stops recording and returns:
         1. Raw float32 numpy waveform array.
         2. In-memory BytesIO containing a standard 16-bit PCM WAV.
+        Also calculates RMS energy and peak amplitude to detect silence/muted hardware.
         """
         with self._lock:
             if not self._is_recording:
@@ -101,12 +163,17 @@ class AudioRecorder:
                 self._stream = None
 
             if not self._frames:
-                # Return empty buffer if no frames collected
                 empty_wav = io.BytesIO()
+                self.last_rms = 0.0
+                self.last_peak = 0.0
                 return np.zeros(0, dtype=np.float32), empty_wav
 
             audio_data = np.concatenate(self._frames, axis=0).flatten()
             self._frames = []
+
+            # Compute RMS energy and peak amplitude
+            self.last_rms = float(np.sqrt(np.mean(audio_data ** 2))) if len(audio_data) > 0 else 0.0
+            self.last_peak = float(np.max(np.abs(audio_data))) if len(audio_data) > 0 else 0.0
 
             # Encode into in-memory WAV buffer
             wav_buffer = io.BytesIO()
@@ -114,8 +181,13 @@ class AudioRecorder:
                 sf.write(wav_buffer, audio_data, self.sample_rate, format="WAV", subtype="PCM_16")
                 wav_buffer.seek(0)
             
-            logger.info(f"Audio recording completed: {len(audio_data) / self.sample_rate:.2f} seconds.")
+            dur = len(audio_data) / self.sample_rate
+            logger.info(f"Audio recording completed: {dur:.2f}s, RMS={self.last_rms:.6f}, Peak={self.last_peak:.6f}")
             return audio_data, wav_buffer
+
+    def is_silent(self, threshold: float = 0.003) -> bool:
+        """Returns True if the recorded audio has near-zero energy (silence / muted mic)."""
+        return self.last_rms < threshold and self.last_peak < (threshold * 2.5)
 
     def is_recording(self) -> bool:
         return self._is_recording
