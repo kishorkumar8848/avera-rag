@@ -598,12 +598,16 @@ class VitalsScreen(QWidget if HAS_QT else object):
 
     def _skip_vitals(self):
         """Skips vital sign recording and proceeds with general consultation."""
-        v = self.current_vitals or sensor_manager.get_vitals()
         if self.on_vitals_confirmed:
-            self.on_vitals_confirmed(v)
+            self.on_vitals_confirmed(None)
 
     def _confirm_and_proceed(self):
         """Confirms recorded vitals and navigates to module selection."""
-        v = self.current_vitals or sensor_manager.get_vitals()
+        has_any = (
+            self.current_vitals.temp_measured or
+            self.current_vitals.spo2_measured or
+            self.current_vitals.ecg_measured
+        )
+        v = self.current_vitals if has_any else None
         if self.on_vitals_confirmed:
             self.on_vitals_confirmed(v)

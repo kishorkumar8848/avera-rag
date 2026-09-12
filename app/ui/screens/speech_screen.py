@@ -514,11 +514,18 @@ class SpeechScreen(QWidget if HAS_QT else object):
         q_layout.addWidget(q_text)
         self.results_layout.addWidget(q_frame)
 
-        # 1b. Recorded Patient Vital Signs Card (Hardware Sensors)
+        # 1b. Recorded Patient Vital Signs Card (Hardware Sensors - Only shown if readings were taken)
         vitals_dict = res.get("patient_profile", {}).get("vitals") or (
             self.active_vitals.to_clinical_dict() if (hasattr(self, "active_vitals") and self.active_vitals and hasattr(self.active_vitals, "to_clinical_dict")) else None
         )
-        if vitals_dict:
+        has_measured_vitals = bool(
+            vitals_dict and (
+                vitals_dict.get("temp_measured") or
+                vitals_dict.get("spo2_measured") or
+                vitals_dict.get("ecg_measured")
+            )
+        )
+        if has_measured_vitals:
             v_frame = QFrame()
             v_frame.setObjectName("CardFrame")
             v_frame.setStyleSheet("QFrame#CardFrame { border-left: 5px solid #0284C7; }")
@@ -533,28 +540,38 @@ class SpeechScreen(QWidget if HAS_QT else object):
             metrics_row = QHBoxLayout()
             metrics_row.setSpacing(10)
 
-            t_val = vitals_dict.get("temperature_f", 98.6)
-            t_stat = vitals_dict.get("temperature_status", "Normal")
-            t_chip = QLabel(f"🌡️ <b>Temp:</b> {t_val}°F ({t_stat})")
-            t_chip.setStyleSheet("background: #F0F9FF; color: #0369A1; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
-            metrics_row.addWidget(t_chip)
+            if vitals_dict.get("temp_measured"):
+                t_val = vitals_dict.get("temperature_f", 98.6)
+                t_stat = vitals_dict.get("temperature_status", "Normal")
+                t_chip = QLabel(f"🌡️ <b>Temp:</b> {t_val}°F ({t_stat})")
+                t_chip.setStyleSheet("background: #F0F9FF; color: #0369A1; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+                metrics_row.addWidget(t_chip)
 
-            sp_val = vitals_dict.get("spo2_percent", 98)
-            sp_stat = vitals_dict.get("spo2_status", "Normal")
-            sp_chip = QLabel(f"💨 <b>SpO2:</b> {sp_val}% ({sp_stat})")
-            sp_chip.setStyleSheet("background: #ECFDF5; color: #047857; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
-            metrics_row.addWidget(sp_chip)
+            if vitals_dict.get("spo2_measured"):
+                sp_val = vitals_dict.get("spo2_percent", 98)
+                sp_stat = vitals_dict.get("spo2_status", "Normal")
+                sp_chip = QLabel(f"💨 <b>SpO2:</b> {sp_val}% ({sp_stat})")
+                sp_chip.setStyleSheet("background: #ECFDF5; color: #047857; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+                metrics_row.addWidget(sp_chip)
 
-            hr_val = vitals_dict.get("heart_rate_bpm", 74)
-            hr_chip = QLabel(f"🫀 <b>Pulse:</b> {hr_val} BPM")
-            hr_chip.setStyleSheet("background: #FEF2F2; color: #B91C1C; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
-            metrics_row.addWidget(hr_chip)
+                hr_val = vitals_dict.get("heart_rate_bpm", 74)
+                hr_chip = QLabel(f"🫀 <b>Pulse:</b> {hr_val} BPM")
+                hr_chip.setStyleSheet("background: #FEF2F2; color: #B91C1C; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+                metrics_row.addWidget(hr_chip)
 
-            ecg_stat = vitals_dict.get("ecg_status", "Normal Sinus")
-            ecg_chip = QLabel(f"📈 <b>ECG:</b> {ecg_stat}")
-            ecg_chip.setStyleSheet("background: #F5F3FF; color: #6D28D9; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
-            metrics_row.addWidget(ecg_chip)
+            if vitals_dict.get("ecg_measured"):
+                ecg_stat = vitals_dict.get("ecg_status", "Normal Sinus")
+                ecg_chip = QLabel(f"📈 <b>ECG:</b> {ecg_stat}")
+                ecg_chip.setStyleSheet("background: #F5F3FF; color: #6D28D9; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+                metrics_row.addWidget(ecg_chip)
 
+                if not vitals_dict.get("spo2_measured"):
+                    hr_val = vitals_dict.get("heart_rate_bpm", 74)
+                    hr_chip = QLabel(f"🫀 <b>Pulse:</b> {hr_val} BPM")
+                    hr_chip.setStyleSheet("background: #FEF2F2; color: #B91C1C; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;")
+                    metrics_row.addWidget(hr_chip)
+
+            metrics_row.addStretch()
             v_layout.addLayout(metrics_row)
             self.results_layout.addWidget(v_frame)
 
@@ -668,11 +685,22 @@ class SpeechScreen(QWidget if HAS_QT else object):
         if self.active_patient:
             pat_frame = QFrame()
             pat_frame.setObjectName("PatientSummaryCard")
+            pat_frame.setStyleSheet("""
+                QFrame#PatientSummaryCard {
+                    background-color: #FFFFFF;
+                    border: 2px solid #CBD5E1;
+                    border-left: 6px solid #0284C7;
+                    border-radius: 12px;
+                    padding: 14px 18px;
+                    margin-top: 6px;
+                }
+            """)
             pat_layout = QVBoxLayout(pat_frame)
-            pat_layout.setSpacing(6)
+            pat_layout.setContentsMargins(14, 12, 14, 12)
+            pat_layout.setSpacing(8)
 
             p_head = QLabel("📋 Citizen Health Profile & Assessment Record")
-            p_head.setStyleSheet("font-size: 16px; font-weight: bold; color: #38BDF8;")
+            p_head.setStyleSheet("font-size: 16px; font-weight: 800; color: #0369A1;")
             pat_layout.addWidget(p_head)
 
             p = self.active_patient
@@ -680,17 +708,19 @@ class SpeechScreen(QWidget if HAS_QT else object):
             a_text = ", ".join(p.allergies) if p.allergies else "None Known"
 
             info_text = (
-                f"<b>Name:</b> {p.name} &nbsp;&bull;&nbsp; "
-                f"<b>Age/Gender:</b> {p.age}y ({p.gender}) &nbsp;&bull;&nbsp; "
-                f"<b>ABHA ID:</b> {p.abha_id}<br>"
-                f"<b>Village:</b> {p.village} &nbsp;&bull;&nbsp; "
-                f"<b>Address:</b> {p.address} &nbsp;&bull;&nbsp; "
-                f"<b>Contact:</b> {p.phone}<br>"
-                f"<b>Pre-existing Conditions:</b> <span style='color: #F87171;'>{c_text}</span> &nbsp;&bull;&nbsp; "
-                f"<b>Allergies:</b> {a_text}"
+                f"<div style='color: #1E293B; font-size: 14px; line-height: 1.6;'>"
+                f"<b style='color: #0F172A;'>Name:</b> <span style='font-weight: 700; color: #0F172A;'>{p.name}</span> &nbsp;&bull;&nbsp; "
+                f"<b style='color: #0F172A;'>Age/Gender:</b> <span style='color: #1E293B;'>{p.age}y ({p.gender})</span> &nbsp;&bull;&nbsp; "
+                f"<b style='color: #0F172A;'>ABHA ID:</b> <span style='font-family: monospace; font-weight: bold; color: #0369A1;'>{p.abha_id}</span><br>"
+                f"<b style='color: #0F172A;'>Village:</b> <span style='color: #1E293B;'>{p.village}</span> &nbsp;&bull;&nbsp; "
+                f"<b style='color: #0F172A;'>Address:</b> <span style='color: #1E293B;'>{p.address}</span> &nbsp;&bull;&nbsp; "
+                f"<b style='color: #0F172A;'>Contact:</b> <span style='color: #1E293B;'>{p.phone}</span><br>"
+                f"<b style='color: #0F172A;'>Pre-existing Conditions:</b> <span style='color: #B91C1C; font-weight: bold; background: #FEF2F2; padding: 2px 6px; border-radius: 4px;'>{c_text}</span> &nbsp;&bull;&nbsp; "
+                f"<b style='color: #0F172A;'>Allergies:</b> <span style='color: #B45309; font-weight: bold; background: #FFFBEB; padding: 2px 6px; border-radius: 4px;'>{a_text}</span>"
+                f"</div>"
             )
             pat_info = QLabel(info_text)
-            pat_info.setStyleSheet("color: #E2E8F0; font-size: 14px; line-height: 1.4;")
+            pat_info.setStyleSheet("color: #1E293B; font-size: 14px; line-height: 1.6;")
             pat_info.setWordWrap(True)
             pat_layout.addWidget(pat_info)
             self.results_layout.addWidget(pat_frame)
@@ -744,6 +774,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         """Cleans up screen widgets for fresh consultation."""
         tts_service.stop_speaking()
         self.last_result = None
+        self.active_vitals = None
         self.replay_btn.setVisible(False)
         self.emergency_frame.setVisible(False)
 

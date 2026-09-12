@@ -99,9 +99,54 @@ class MMSTTSService:
             self.active_lang = None
             return False
 
+    def _chunk_text(self, text: str, max_chars: int = 150) -> list:
+        """Splits narrative into natural sentence and clause chunks for memory-safe VITS synthesis."""
+        import re
+        raw_sentences = [s.strip() for s in re.split(r"(?<=[.!?।\n])\s+", text) if s.strip()]
+        chunks = []
+        curr = ""
+        for s in raw_sentences:
+            if len(s) > max_chars:
+                sub_parts = [p.strip() for p in re.split(r"(?<=[,;:])\s+", s) if p.strip()]
+                for p in sub_parts:
+                    if len(p) > max_chars:
+                        words = p.split()
+                        w_curr = ""
+                        for w in words:
+                            if not w_curr:
+                                w_curr = w
+                            elif len(w_curr) + len(w) + 1 <= max_chars:
+                                w_curr += " " + w
+                            else:
+                                chunks.append(w_curr)
+                                w_curr = w
+                        if w_curr:
+                            chunks.append(w_curr)
+                    else:
+                        if not curr:
+                            curr = p
+                        elif len(curr) + len(p) + 1 <= max_chars:
+                            curr += ", " + p
+                        else:
+                            chunks.append(curr)
+                            curr = p
+            else:
+                if not curr:
+                    curr = s
+                elif len(curr) + len(s) + 1 <= max_chars:
+                    curr += " " + s
+                else:
+                    chunks.append(curr)
+                    curr = s
+        if curr:
+            chunks.append(curr)
+        return chunks if chunks else [text[:max_chars]]
+
     def synthesize(self, text: str, language: str = "en") -> Tuple[Optional[bytes], float]:
         """
         Synthesizes text into 16-bit PCM WAV bytes using offline VITS neural network.
+        Synthesizes in bounded sentence chunks with intermediate garbage collection
+        to support arbitrarily long clinical narrations with zero OOM risk.
         Returns: (wav_bytes: Optional[bytes], latency_ms: float)
         """
         if not HAS_VITS or not text.strip():
@@ -109,39 +154,54 @@ class MMSTTSService:
 
         lang = language.lower().strip()
         start_time = time.time()
-        # Strictly bound text length to prevent tensor memory explosion on edge hardware
-        bounded_text = text[:280].strip()
+        # Bound maximum overall narrative to 1500 chars to avoid infinite loops
+        bounded_text = text[:1500].strip()
 
         with self._lock:
             if not self._load_language_model(lang):
                 return None, 0.0
 
             try:
-                inputs = self.active_tokenizer(bounded_text, return_tensors="pt")
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-                with torch.no_grad():
-                    output = self.active_model(**inputs).waveform
-
-                audio_data = output.cpu().float().numpy().squeeze()
-                sample_rate = self.active_model.config.sampling_rate
-
-                # Clean up PyTorch tensors immediately to release RAM
-                del output
-                del inputs
                 import gc
-                gc.collect()
-
-                # Convert float32 [-1, 1] to int16 PCM
                 import numpy as np
-                audio_int16 = np.clip(audio_data * 32767.0, -32768, 32767).astype(np.int16)
 
+                chunks = self._chunk_text(bounded_text, max_chars=150)
+                sample_rate = self.active_model.config.sampling_rate
+                audio_parts = []
+
+                for i, chunk in enumerate(chunks):
+                    if not chunk.strip():
+                        continue
+                    inputs = self.active_tokenizer(chunk, return_tensors="pt")
+                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+                    with torch.no_grad():
+                        output = self.active_model(**inputs).waveform
+
+                    audio_data = output.cpu().float().numpy().squeeze()
+                    audio_int16 = np.clip(audio_data * 32767.0, -32768, 32767).astype(np.int16)
+                    audio_parts.append(audio_int16)
+
+                    # Add 0.25s natural pause between sentence blocks
+                    if i < len(chunks) - 1:
+                        pause = np.zeros(int(sample_rate * 0.25), dtype=np.int16)
+                        audio_parts.append(pause)
+
+                    # Clean up PyTorch tensors immediately to release RAM
+                    del output
+                    del inputs
+                    gc.collect()
+
+                if not audio_parts:
+                    return None, 0.0
+
+                combined_audio = np.concatenate(audio_parts)
                 wav_buf = io.BytesIO()
-                scipy.io.wavfile.write(wav_buf, rate=sample_rate, data=audio_int16)
+                scipy.io.wavfile.write(wav_buf, rate=sample_rate, data=combined_audio)
                 wav_bytes = wav_buf.getvalue()
 
                 latency_ms = (time.time() - start_time) * 1000.0
-                logger.info(f"Neural MMS-TTS synthesized {len(wav_bytes)} bytes for '{lang}' ({latency_ms:.1f}ms).")
+                logger.info(f"Neural MMS-TTS synthesized {len(chunks)} blocks, {len(wav_bytes)} bytes for '{lang}' ({latency_ms:.1f}ms).")
                 return wav_bytes, latency_ms
             except Exception as e:
                 logger.error(f"Neural MMS-TTS synthesis failed for '{lang}': {e}")

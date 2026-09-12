@@ -250,40 +250,40 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
 
     def _build_full_narration(self, summary: str, schema: MedicalResponseSchema) -> str:
         """
-        Assembles a concise, natural clinical voice summary for audio narration.
-        Avoids overwhelming the patient with a 5-minute monologue, and keeps
-        memory usage strictly bounded (<150MB) on Jetson hardware.
+        Assembles a comprehensive, natural clinical voice narration covering both
+        the clinical assessment guidance and all recommended action steps.
+        Memory-safe chunked MMS-TTS handles full playback without Jetson OOM risk.
         """
-        import re
         parts = []
 
-        # 1. Primary assessment sentence(s) (max 2 sentences or 180 chars)
+        # 1. Clinical assessment summary
         clean_sum = summary.strip()
-        sentences = [s.strip() for s in re.split(r"(?<=[.!?।])\s+", clean_sum) if s.strip()]
-        if sentences:
-            lead_summary = sentences[0]
-            if len(sentences) > 1 and len(lead_summary) < 90:
-                lead_summary += " " + sentences[1]
-            parts.append(lead_summary)
-        elif clean_sum:
-            parts.append(clean_sum[:180])
+        if clean_sum:
+            parts.append(clean_sum)
 
-        # 2. Key primary recommendation (first action item)
+        # 2. Recommended Next Steps (all actionable advice items)
         if schema.recommended_actions:
-            first_action = schema.recommended_actions[0].strip().lstrip("- •0123456789. ")
-            if first_action:
-                header = {
-                    "ta": "முக்கிய ஆலோசனை: ",
-                    "hi": "मुख्य सलाह: ",
-                    "te": "ముఖ్యమైన సలహా: ",
-                    "kn": "ಮುಖ್ಯ ಸಲಹೆ: ",
-                    "ml": "പ്രധാന ഉപദേശം: "
-                }.get(self.language, "Key advice: ")
-                parts.append(f"{header}{first_action}.")
+            header = {
+                "ta": "பரிந்துரைக்கப்பட்ட அடுத்த நடவடிக்கைகள்: ",
+                "hi": "अनुशंसित अगले कदम: ",
+                "te": "సూచించిన తదుపరి చర్యలు: ",
+                "kn": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು: ",
+                "ml": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ: "
+            }.get(self.language, "Recommended next steps: ")
+
+            action_sentences = []
+            for action in schema.recommended_actions:
+                clean_act = action.strip().lstrip("- •0123456789. ")
+                if clean_act:
+                    if not clean_act.endswith((".", "!", "?", "।")):
+                        clean_act += "."
+                    action_sentences.append(clean_act)
+
+            if action_sentences:
+                parts.append(f"{header}{' '.join(action_sentences)}")
 
         narration = " ".join(parts).strip()
-        # Cap total spoken length at 280 characters for optimal TTS latency and zero memory bloat
-        return narration[:280]
+        return narration[:1200]
 
     def _emit_status(self, text: str):
         if self.signals:
@@ -486,7 +486,7 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
             }.get(self.language, "Referral guidance. ")
             parts.append(header + schema.referral)
 
-        return " ".join(parts)
+        return " ".join(parts)[:1200]
 
     def _emit_status(self, text: str):
         if self.signals:

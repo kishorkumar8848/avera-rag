@@ -374,10 +374,11 @@ QPushButton#NewAssessmentBtn:pressed {
 
 /* Patient Summary Card at End of Consultation */
 QFrame#PatientSummaryCard {
-    background-color: #F8FAFC;
-    border: 1.5px solid #CBD5E1;
+    background-color: #FFFFFF;
+    border: 2px solid #CBD5E1;
+    border-left: 6px solid #0284C7;
     border-radius: 12px;
-    padding: 16px;
+    padding: 16px 18px;
     margin-top: 8px;
 }
 
