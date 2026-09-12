@@ -294,7 +294,7 @@ class VitalsScreen(QWidget if HAS_QT else object):
         self.spo2_prog.setVisible(False)
         s_layout.addWidget(self.spo2_prog)
 
-        self.spo2_action_btn = QPushButton("▶️ Record SpO2 & Pulse (4s)")
+        self.spo2_action_btn = QPushButton("▶️ Record SpO2 and Pulse (4s)")
         self.spo2_action_btn.setObjectName("NavBtn")
         self.spo2_action_btn.setFixedHeight(38)
         self.spo2_action_btn.setCursor(Qt.PointingHandCursor)
@@ -389,7 +389,7 @@ class VitalsScreen(QWidget if HAS_QT else object):
 
         btn_row.addStretch()
 
-        self.confirm_btn = QPushButton("✅ Confirm Vitals & Proceed  ➔")
+        self.confirm_btn = QPushButton("✅ Confirm Vitals and Proceed  ➔")
         self.confirm_btn.setObjectName("PrimaryBtn")
         self.confirm_btn.setFixedHeight(38)
         self.confirm_btn.setCursor(Qt.PointingHandCursor)
@@ -475,7 +475,7 @@ class VitalsScreen(QWidget if HAS_QT else object):
         self.spo2_prog.setValue(0)
         self.spo2_prog.setVisible(True)
         self.spo2_action_btn.setEnabled(False)
-        self.spo2_action_btn.setText("⏳ Measuring SpO2 & Pulse (4s)...")
+        self.spo2_action_btn.setText("⏳ Measuring SpO2 and Pulse (4s)...")
         self.spo2_val_lbl.setText("Reading...")
         self.hr_val_lbl.setText("Reading...")
         self.spo2_timer.start(100)
@@ -501,7 +501,7 @@ class VitalsScreen(QWidget if HAS_QT else object):
 
             self.spo2_lock_badge.setText("✅ Recorded")
             self.spo2_lock_badge.setStyleSheet("font-size: 12px; font-weight: 700; color: #065F46; background: #ECFDF5; padding: 4px 8px; border-radius: 4px;")
-            self.spo2_action_btn.setText("🔄 Retake SpO2 & Pulse")
+            self.spo2_action_btn.setText("🔄 Retake SpO2 and Pulse")
             self.spo2_action_btn.setEnabled(True)
             self._update_confirm_button_state()
 
@@ -576,7 +576,7 @@ class VitalsScreen(QWidget if HAS_QT else object):
         self.hr_status_lbl.setText("Heart Rate / Pulse")
         self.spo2_lock_badge.setText("○ Not Measured")
         self.spo2_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
-        self.spo2_action_btn.setText("▶️ Take SpO2 & Pulse Reading (4s)")
+        self.spo2_action_btn.setText("▶️ Take SpO2 and Pulse Reading (4s)")
 
         self.ecg_canvas.set_data([0.5] * 80, True, is_active=False, msg="Ready for ECG capture")
         self.ecg_lock_badge.setText("○ Not Measured")

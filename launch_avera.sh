@@ -7,6 +7,7 @@
 export DISPLAY="${DISPLAY:-:0}"
 export XAUTHORITY="${XAUTHORITY:-/home/orion/.Xauthority}"
 export PYTHONUNBUFFERED=1
+export FULLSCREEN="${FULLSCREEN:-true}"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"

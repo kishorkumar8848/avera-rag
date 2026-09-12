@@ -127,11 +127,11 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         bar_layout.addWidget(self.lang_badge)
 
         # Fullscreen Toggle Button (Compact Icon Button)
-        self.fs_btn = QPushButton("⛶")
+        self.fs_btn = QPushButton("🗗" if settings.FULLSCREEN else "⛶")
         self.fs_btn.setObjectName("TopNavBtn")
         self.fs_btn.setFixedSize(36, 36)
         self.fs_btn.setCursor(Qt.PointingHandCursor)
-        self.fs_btn.setToolTip("Toggle Fullscreen")
+        self.fs_btn.setToolTip("Exit Fullscreen (Windowed)" if settings.FULLSCREEN else "Enter Fullscreen")
         self.fs_btn.clicked.connect(self.toggle_fullscreen)
         bar_layout.addWidget(self.fs_btn)
 
@@ -373,7 +373,8 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
             self.toggle_fullscreen()
         elif key == esc_key and self.isFullScreen():
             self.showMaximized()
-            self.fs_btn.setText("⛶ Fullscreen")
+            self.fs_btn.setText("⛶")
+            self.fs_btn.setToolTip("Enter Fullscreen")
         else:
             super().keyPressEvent(event)
 
