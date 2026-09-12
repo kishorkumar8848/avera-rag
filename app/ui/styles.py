@@ -21,17 +21,23 @@ QFrame#TopBar {
     max-height: 64px;
 }
 
+QFrame#TopBar QLabel {
+    background-color: transparent;
+}
+
 QLabel#TopBarBrand {
     font-size: 24px;
     font-weight: 800;
     color: #1D4ED8;
     letter-spacing: 0.5px;
+    background-color: transparent;
 }
 
 QLabel#TopBarTagline {
     font-size: 12px;
     color: #64748B;
     font-weight: 500;
+    background-color: transparent;
 }
 
 QLabel#TopBarSubHeader {
@@ -57,6 +63,7 @@ QLabel#TopBarClock {
     font-size: 13px;
     font-weight: 600;
     color: #475569;
+    background-color: transparent;
 }
 
 QLabel#TopBarTelemetry {

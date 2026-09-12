@@ -49,6 +49,7 @@ class LanguageScreen(QWidget if HAS_QT else object):
 
         # Header Title Area
         header_container = QWidget()
+        header_container.setStyleSheet("background: transparent;")
         header_layout = QVBoxLayout(header_container)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)

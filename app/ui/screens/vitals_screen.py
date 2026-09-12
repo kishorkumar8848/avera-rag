@@ -420,11 +420,11 @@ class VitalsScreen(QWidget if HAS_QT else object):
         """Monitors real-time electrode attachment status."""
         v = sensor_manager.get_vitals()
         if v.ecg_leads_ok:
-            self.lead_status_lbl.setText("● Electrodes Connected (Ready)")
-            self.lead_status_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #059669;")
+            self.lead_status_lbl.setText("● Leads OK")
+            self.lead_status_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #059669;")
         else:
-            self.lead_status_lbl.setText("⚠️ Electrodes Detached (Check Pad Contact)")
-            self.lead_status_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #DC2626;")
+            self.lead_status_lbl.setText("⚠️ Leads Off")
+            self.lead_status_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #DC2626;")
 
     # -------------------------------------------------------------------------
     # STEP 1: TEMPERATURE ON-DEMAND MEASUREMENT
