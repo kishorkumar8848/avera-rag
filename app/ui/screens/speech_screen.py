@@ -412,7 +412,12 @@ class SpeechScreen(QWidget if HAS_QT else object):
         while self.results_layout.count() > 1:
             item = self.results_layout.takeAt(1)
             if item.widget():
+                item.widget().hide()
+                item.widget().setParent(None)
                 item.widget().deleteLater()
+
+        if hasattr(self, "scroll_area") and self.scroll_area.verticalScrollBar():
+            self.scroll_area.verticalScrollBar().setValue(0)
 
         # Localized Card Headers
         lbls = {
@@ -782,6 +787,8 @@ class SpeechScreen(QWidget if HAS_QT else object):
         while self.results_layout.count() > 1:
             item = self.results_layout.takeAt(1)
             if item.widget():
+                item.widget().hide()
+                item.widget().setParent(None)
                 item.widget().deleteLater()
 
         self.placeholder_label.setText(self._get_placeholder_text())
