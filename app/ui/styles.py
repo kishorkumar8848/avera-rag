@@ -54,7 +54,7 @@ QFrame#TopBarDivider {
 }
 
 QLabel#TopBarClock {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: #475569;
 }
@@ -63,8 +63,36 @@ QLabel#TopBarTelemetry {
     font-size: 12px;
     color: #64748B;
     background-color: #F1F5F9;
-    padding: 4px 8px;
+    padding: 2px 6px;
     border-radius: 6px;
+}
+
+QPushButton#TopNavBtn {
+    min-height: 34px;
+    max-height: 34px;
+    padding: 2px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    background-color: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    color: #334155;
+}
+
+QPushButton#TopNavBtn:hover {
+    background-color: #EFF6FF;
+    border-color: #3B82F6;
+    color: #1D4ED8;
+}
+
+QPushButton#TopNavBtn:pressed {
+    background-color: #DBEAFE;
+}
+
+QPushButton#TopNavBtn:disabled {
+    background-color: #F8FAFC;
+    color: #CBD5E1;
+    border-color: #F1F5F9;
 }
 
 QPushButton#NavBtn {
@@ -85,15 +113,16 @@ QPushButton#NavBtn:hover {
 }
 
 QPushButton#PatientBadgeBtn {
-    min-height: 40px;
-    max-height: 40px;
-    padding: 4px 10px;
+    min-height: 34px;
+    max-height: 34px;
+    padding: 2px 8px;
     font-size: 13px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 6px;
     background-color: #EFF6FF;
     border: 1px solid #BFDBFE;
     color: #1D4ED8;
+    max-width: 150px;
 }
 
 QPushButton#PatientBadgeBtn:hover {

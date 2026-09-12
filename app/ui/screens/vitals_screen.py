@@ -31,7 +31,7 @@ class ECGWaveformWidget(QWidget if HAS_QT else object):
         self.leads_ok: bool = True
         self.is_active: bool = False
         self.status_msg: str = "Ready for ECG capture"
-        self.setMinimumHeight(150)
+        self.setFixedHeight(68)
 
     def set_data(self, points: list, leads_ok: bool = True, is_active: bool = False, msg: str = ""):
         self.points = points
@@ -133,276 +133,265 @@ class VitalsScreen(QWidget if HAS_QT else object):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(36, 16, 36, 20)
-        layout.setSpacing(14)
+        layout.setContentsMargins(14, 8, 14, 10)
+        layout.setSpacing(8)
 
-        # 1. Patient Profile Info Strip
+        # 1. Compact Header Bar: Title on Left, Citizen Banner on Right
+        hdr_row = QHBoxLayout()
+        hdr_row.setSpacing(10)
+
+        title_lbl = QLabel("🩺 Biometric Vital Signs Acquisition")
+        title_lbl.setStyleSheet("font-size: 17px; font-weight: 800; color: #0F172A;")
+        hdr_row.addWidget(title_lbl)
+
+        hdr_row.addStretch()
+
         self.patient_banner = QLabel("👤 <b>Citizen</b>: Select Resident • ABHA: --")
         self.patient_banner.setStyleSheet(
-            "background: #EFF6FF; color: #1E40AF; padding: 10px 16px; border-radius: 8px; "
-            "font-size: 15px; border: 1px solid #BFDBFE;"
+            "background: #EFF6FF; color: #1E40AF; padding: 4px 12px; border-radius: 6px; "
+            "font-size: 13px; border: 1px solid #BFDBFE;"
         )
-        layout.addWidget(self.patient_banner)
+        hdr_row.addWidget(self.patient_banner)
+        layout.addLayout(hdr_row)
 
-        # 2. Header & Step Instructions
-        h_box = QWidget()
-        h_layout = QVBoxLayout(h_box)
-        h_layout.setContentsMargins(0, 0, 0, 0)
-        h_layout.setSpacing(3)
+        # 2. Main 3-Column Cards Layout (Equal Width 1 : 1 : 1 Side-by-Side)
+        cards_row = QHBoxLayout()
+        cards_row.setSpacing(10)
 
-        title = QLabel("Biometric Vital Signs Acquisition")
-        title.setStyleSheet("font-size: 24px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px;")
-        h_layout.addWidget(title)
-
-        subtitle = QLabel("Click 'Take Reading' to measure each vital sign one by one. Follow the ECG node guide for electrode placement.")
-        subtitle.setStyleSheet("font-size: 14px; color: #64748B; font-weight: 500;")
-        h_layout.addWidget(subtitle)
-        layout.addWidget(h_box)
-
-        # 3. Main Split Content (Left: Temp & SpO2 Cards, Right: ECG & Electrode Guide)
-        content_row = QHBoxLayout()
-        content_row.setSpacing(16)
-
-        # Left Column (Temp + SpO2)
-        left_col = QVBoxLayout()
-        left_col.setSpacing(14)
-
-        # ---------------------------------------------------------------------
-        # Card 1: Body Temperature (MLX90614 Non-Contact IR)
-        # ---------------------------------------------------------------------
+        # =====================================================================
+        # CARD 1: Body Temperature (MLX90614)
+        # =====================================================================
         self.temp_card = QFrame()
         self.temp_card.setObjectName("CardFrame")
+        self.temp_card.setStyleSheet("QFrame#CardFrame { border-top: 4px solid #0284C7; }")
         t_layout = QVBoxLayout(self.temp_card)
-        t_layout.setContentsMargins(20, 16, 20, 16)
-        t_layout.setSpacing(8)
+        t_layout.setContentsMargins(12, 10, 12, 10)
+        t_layout.setSpacing(6)
 
         t_hdr_row = QHBoxLayout()
-        t_hdr = QLabel("🌡️ <b>Step 1: Body Temperature</b>")
-        t_hdr.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
+        t_hdr = QLabel("🌡️ <b>Temperature</b>")
+        t_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #0F172A;")
         t_hdr_row.addWidget(t_hdr)
         t_hdr_row.addStretch()
-
         self.temp_lock_badge = QLabel("○ Not Measured")
-        self.temp_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        self.temp_lock_badge.setStyleSheet("font-size: 11px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;")
         t_hdr_row.addWidget(self.temp_lock_badge)
         t_layout.addLayout(t_hdr_row)
 
-        t_inst = QLabel("👉 Hold infrared sensor 2-4 cm from center of patient's forehead.")
-        t_inst.setStyleSheet("font-size: 13px; color: #475569; font-weight: 500;")
+        t_inst = QLabel("Hold sensor 2-4 cm from forehead.")
+        t_inst.setStyleSheet("font-size: 12px; color: #64748B;")
         t_layout.addWidget(t_inst)
 
-        t_val_row = QHBoxLayout()
+        # Value display box
+        t_val_box = QFrame()
+        t_val_box.setStyleSheet("background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 6px;")
+        t_val_layout = QVBoxLayout(t_val_box)
+        t_val_layout.setContentsMargins(6, 6, 6, 6)
+        t_val_layout.setSpacing(4)
+
         self.temp_val_lbl = QLabel("--.- °F")
-        self.temp_val_lbl.setStyleSheet("font-size: 32px; font-weight: 900; color: #0284C7;")
-        t_val_row.addWidget(self.temp_val_lbl)
+        self.temp_val_lbl.setAlignment(Qt.AlignCenter)
+        self.temp_val_lbl.setStyleSheet("font-size: 26px; font-weight: 900; color: #0284C7;")
+        t_val_layout.addWidget(self.temp_val_lbl)
 
         self.temp_status_lbl = QLabel("Awaiting measurement")
-        self.temp_status_lbl.setStyleSheet("font-size: 13px; font-weight: 600; color: #64748B; background: #F8FAFC; padding: 6px 12px; border-radius: 6px;")
-        t_val_row.addWidget(self.temp_status_lbl)
-        t_val_row.addStretch()
-        t_layout.addLayout(t_val_row)
+        self.temp_status_lbl.setAlignment(Qt.AlignCenter)
+        self.temp_status_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #64748B; background: #FFFFFF; padding: 2px 6px; border-radius: 4px;")
+        t_val_layout.addWidget(self.temp_status_lbl)
+        t_layout.addWidget(t_val_box)
+
+        t_layout.addStretch()
 
         self.temp_prog = QProgressBar()
         self.temp_prog.setRange(0, 100)
         self.temp_prog.setValue(0)
         self.temp_prog.setTextVisible(False)
-        self.temp_prog.setFixedHeight(6)
-        self.temp_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 3px; } QProgressBar::chunk { background: #0284C7; border-radius: 3px; }")
+        self.temp_prog.setFixedHeight(5)
+        self.temp_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 2px; } QProgressBar::chunk { background: #0284C7; border-radius: 2px; }")
         self.temp_prog.setVisible(False)
         t_layout.addWidget(self.temp_prog)
 
-        self.temp_action_btn = QPushButton("▶️ Take Temperature Reading (3s)")
+        self.temp_action_btn = QPushButton("▶️ Record Temp (3s)")
         self.temp_action_btn.setObjectName("NavBtn")
-        self.temp_action_btn.setMinimumHeight(44)
+        self.temp_action_btn.setFixedHeight(38)
         self.temp_action_btn.setCursor(Qt.PointingHandCursor)
         self.temp_action_btn.clicked.connect(self._start_temp_reading)
         t_layout.addWidget(self.temp_action_btn)
 
-        left_col.addWidget(self.temp_card)
+        cards_row.addWidget(self.temp_card, 1)
 
-        # ---------------------------------------------------------------------
-        # Card 2: Blood Oxygen & Pulse (MAX30100)
-        # ---------------------------------------------------------------------
+        # =====================================================================
+        # CARD 2: Blood Oxygen & Pulse (MAX30100)
+        # =====================================================================
         self.spo2_card = QFrame()
         self.spo2_card.setObjectName("CardFrame")
+        self.spo2_card.setStyleSheet("QFrame#CardFrame { border-top: 4px solid #059669; }")
         s_layout = QVBoxLayout(self.spo2_card)
-        s_layout.setContentsMargins(20, 16, 20, 16)
-        s_layout.setSpacing(8)
+        s_layout.setContentsMargins(12, 10, 12, 10)
+        s_layout.setSpacing(6)
 
         s_hdr_row = QHBoxLayout()
-        s_hdr = QLabel("💨 <b>Step 2: Blood Oxygen & Pulse</b>")
-        s_hdr.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
+        s_hdr = QLabel("💨 <b>SpO2 & Pulse</b>")
+        s_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #0F172A;")
         s_hdr_row.addWidget(s_hdr)
         s_hdr_row.addStretch()
-
         self.spo2_lock_badge = QLabel("○ Not Measured")
-        self.spo2_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        self.spo2_lock_badge.setStyleSheet("font-size: 11px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;")
         s_hdr_row.addWidget(self.spo2_lock_badge)
         s_layout.addLayout(s_hdr_row)
 
-        s_inst = QLabel("👉 Place patient's index finger gently on the red optical sensor.")
-        s_inst.setStyleSheet("font-size: 13px; color: #475569; font-weight: 500;")
+        s_inst = QLabel("Place index finger gently on sensor.")
+        s_inst.setStyleSheet("font-size: 12px; color: #64748B;")
         s_layout.addWidget(s_inst)
 
-        s_val_row = QHBoxLayout()
-        s_val_row.setSpacing(14)
+        # Dual value display box
+        s_val_box = QFrame()
+        s_val_box.setStyleSheet("background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 6px;")
+        s_val_layout = QVBoxLayout(s_val_box)
+        s_val_layout.setContentsMargins(6, 6, 6, 6)
+        s_val_layout.setSpacing(4)
 
-        v_box1 = QVBoxLayout()
+        s_dual_row = QHBoxLayout()
+        s_dual_row.setSpacing(6)
+
+        # SpO2 col
+        col_sp = QVBoxLayout()
+        col_sp.setSpacing(2)
         self.spo2_val_lbl = QLabel("-- %")
-        self.spo2_val_lbl.setStyleSheet("font-size: 32px; font-weight: 900; color: #059669;")
-        self.spo2_status_lbl = QLabel("SpO2 Saturation")
-        self.spo2_status_lbl.setStyleSheet("font-size: 12px; color: #64748B; font-weight: 600;")
-        v_box1.addWidget(self.spo2_val_lbl)
-        v_box1.addWidget(self.spo2_status_lbl)
-        s_val_row.addLayout(v_box1)
+        self.spo2_val_lbl.setAlignment(Qt.AlignCenter)
+        self.spo2_val_lbl.setStyleSheet("font-size: 24px; font-weight: 900; color: #059669;")
+        col_sp.addWidget(self.spo2_val_lbl)
+        self.spo2_status_lbl = QLabel("SpO2")
+        self.spo2_status_lbl.setAlignment(Qt.AlignCenter)
+        self.spo2_status_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #065F46; background: #FFFFFF; padding: 2px 4px; border-radius: 3px;")
+        col_sp.addWidget(self.spo2_status_lbl)
+        s_dual_row.addLayout(col_sp)
 
-        v_box2 = QVBoxLayout()
+        # HR col
+        col_hr = QVBoxLayout()
+        col_hr.setSpacing(2)
         self.hr_val_lbl = QLabel("-- BPM")
-        self.hr_val_lbl.setStyleSheet("font-size: 32px; font-weight: 900; color: #DC2626;")
-        self.hr_status_lbl = QLabel("Heart Rate / Pulse")
-        self.hr_status_lbl.setStyleSheet("font-size: 12px; color: #64748B; font-weight: 600;")
-        v_box2.addWidget(self.hr_val_lbl)
-        v_box2.addWidget(self.hr_status_lbl)
-        s_val_row.addLayout(v_box2)
+        self.hr_val_lbl.setAlignment(Qt.AlignCenter)
+        self.hr_val_lbl.setStyleSheet("font-size: 24px; font-weight: 900; color: #DC2626;")
+        col_hr.addWidget(self.hr_val_lbl)
+        self.hr_status_lbl = QLabel("Pulse")
+        self.hr_status_lbl.setAlignment(Qt.AlignCenter)
+        self.hr_status_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #991B1B; background: #FFFFFF; padding: 2px 4px; border-radius: 3px;")
+        col_hr.addWidget(self.hr_status_lbl)
+        s_dual_row.addLayout(col_hr)
 
-        s_val_row.addStretch()
-        s_layout.addLayout(s_val_row)
+        s_val_layout.addLayout(s_dual_row)
+        s_layout.addWidget(s_val_box)
+
+        s_layout.addStretch()
 
         self.spo2_prog = QProgressBar()
         self.spo2_prog.setRange(0, 100)
         self.spo2_prog.setValue(0)
         self.spo2_prog.setTextVisible(False)
-        self.spo2_prog.setFixedHeight(6)
-        self.spo2_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 3px; } QProgressBar::chunk { background: #059669; border-radius: 3px; }")
+        self.spo2_prog.setFixedHeight(5)
+        self.spo2_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 2px; } QProgressBar::chunk { background: #059669; border-radius: 2px; }")
         self.spo2_prog.setVisible(False)
         s_layout.addWidget(self.spo2_prog)
 
-        self.spo2_action_btn = QPushButton("▶️ Take SpO2 & Pulse Reading (4s)")
+        self.spo2_action_btn = QPushButton("▶️ Record SpO2 & Pulse (4s)")
         self.spo2_action_btn.setObjectName("NavBtn")
-        self.spo2_action_btn.setMinimumHeight(44)
+        self.spo2_action_btn.setFixedHeight(38)
         self.spo2_action_btn.setCursor(Qt.PointingHandCursor)
         self.spo2_action_btn.clicked.connect(self._start_spo2_reading)
         s_layout.addWidget(self.spo2_action_btn)
 
-        left_col.addWidget(self.spo2_card)
+        cards_row.addWidget(self.spo2_card, 1)
 
-        content_row.addLayout(left_col, stretch=4)
-
-        # ---------------------------------------------------------------------
-        # Right Column (ECG Rhythm & Node Placement Guide)
-        # ---------------------------------------------------------------------
-        right_col = QVBoxLayout()
-        right_col.setSpacing(14)
-
+        # =====================================================================
+        # CARD 3: Cardiac Rhythm & ECG (AD8232)
+        # =====================================================================
         self.ecg_card = QFrame()
         self.ecg_card.setObjectName("CardFrame")
+        self.ecg_card.setStyleSheet("QFrame#CardFrame { border-top: 4px solid #7C3AED; }")
         e_layout = QVBoxLayout(self.ecg_card)
-        e_layout.setContentsMargins(20, 16, 20, 16)
-        e_layout.setSpacing(10)
+        e_layout.setContentsMargins(12, 10, 12, 10)
+        e_layout.setSpacing(5)
 
-        # Header Row
         e_hdr_row = QHBoxLayout()
-        e_hdr = QLabel("📈 <b>Step 3: Cardiac Rhythm & ECG Monitor (AD8232)</b>")
-        e_hdr.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
+        e_hdr = QLabel("📈 <b>ECG Rhythm</b>")
+        e_hdr.setStyleSheet("font-size: 15px; font-weight: 700; color: #0F172A;")
         e_hdr_row.addWidget(e_hdr)
         e_hdr_row.addStretch()
-
         self.ecg_lock_badge = QLabel("○ Not Measured")
-        self.ecg_lock_badge.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 4px 8px; border-radius: 4px;")
+        self.ecg_lock_badge.setStyleSheet("font-size: 11px; font-weight: 600; color: #64748B; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;")
         e_hdr_row.addWidget(self.ecg_lock_badge)
         e_layout.addLayout(e_hdr_row)
 
-        # ---------------------------------------------------------------------
-        # VISUAL ELECTRODE PLACEMENT GUIDE (3-LEAD EINTHOVEN TRIANGLE)
-        # ---------------------------------------------------------------------
-        guide_box = QFrame()
-        guide_box.setStyleSheet("background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px;")
-        g_layout = QVBoxLayout(guide_box)
-        g_layout.setContentsMargins(10, 8, 10, 8)
-        g_layout.setSpacing(6)
-
-        g_title_row = QHBoxLayout()
-        g_title = QLabel("📍 <b>3-Node Electrode Placement Guide:</b>")
-        g_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #1E293B;")
-        g_title_row.addWidget(g_title)
-        g_title_row.addStretch()
-
-        self.lead_status_lbl = QLabel("● Leads Connected (LO+/LO- OK)")
-        self.lead_status_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #059669;")
-        g_title_row.addWidget(self.lead_status_lbl)
-        g_layout.addLayout(g_title_row)
-
+        # Compact Electrode Node Pills
         nodes_row = QHBoxLayout()
-        nodes_row.setSpacing(8)
+        nodes_row.setSpacing(3)
+        ra_pill = QLabel("🔴 RA")
+        ra_pill.setStyleSheet("font-size: 10px; font-weight: bold; color: #991B1B; background: #FEF2F2; padding: 1px 4px; border-radius: 3px;")
+        nodes_row.addWidget(ra_pill)
+        la_pill = QLabel("🟡 LA")
+        la_pill.setStyleSheet("font-size: 10px; font-weight: bold; color: #854D0E; background: #FEFCE8; padding: 1px 4px; border-radius: 3px;")
+        nodes_row.addWidget(la_pill)
+        rl_pill = QLabel("🟢 RL")
+        rl_pill.setStyleSheet("font-size: 10px; font-weight: bold; color: #065F46; background: #ECFDF5; padding: 1px 4px; border-radius: 3px;")
+        nodes_row.addWidget(rl_pill)
+        nodes_row.addStretch()
 
-        # Node 1: RA (Red)
-        ra_box = QLabel("🔴 <b>RA (Red Lead)</b><br/>Right Upper Chest<br/><i>(Below Collarbone)</i>")
-        ra_box.setStyleSheet("background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; padding: 6px 10px; border-radius: 6px; font-size: 12px;")
-        nodes_row.addWidget(ra_box)
+        self.lead_status_lbl = QLabel("● Leads OK")
+        self.lead_status_lbl.setStyleSheet("font-size: 10px; font-weight: 700; color: #059669;")
+        nodes_row.addWidget(self.lead_status_lbl)
+        e_layout.addLayout(nodes_row)
 
-        # Node 2: LA (Yellow)
-        la_box = QLabel("🟡 <b>LA (Yellow Lead)</b><br/>Left Upper Chest<br/><i>(Below Collarbone)</i>")
-        la_box.setStyleSheet("background: #FEFCE8; color: #854D0E; border: 1px solid #FEF08A; padding: 6px 10px; border-radius: 6px; font-size: 12px;")
-        nodes_row.addWidget(la_box)
-
-        # Node 3: RL (Green)
-        rl_box = QLabel("🟢 <b>RL (Green Lead)</b><br/>Right Lower Flank<br/><i>(Reference Ground)</i>")
-        rl_box.setStyleSheet("background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; padding: 6px 10px; border-radius: 6px; font-size: 12px;")
-        nodes_row.addWidget(rl_box)
-
-        g_layout.addLayout(nodes_row)
-        e_layout.addWidget(guide_box)
-
-        # ECG Oscilloscope Screen
+        # Compact ECG Oscilloscope (68px height)
         self.ecg_canvas = ECGWaveformWidget()
+        self.ecg_canvas.setFixedHeight(68)
         e_layout.addWidget(self.ecg_canvas)
 
-        # Progress bar
+        e_layout.addStretch()
+
         self.ecg_prog = QProgressBar()
         self.ecg_prog.setRange(0, 100)
         self.ecg_prog.setValue(0)
         self.ecg_prog.setTextVisible(False)
-        self.ecg_prog.setFixedHeight(6)
-        self.ecg_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 3px; } QProgressBar::chunk { background: #10B981; border-radius: 3px; }")
+        self.ecg_prog.setFixedHeight(5)
+        self.ecg_prog.setStyleSheet("QProgressBar { background: #E2E8F0; border-radius: 2px; } QProgressBar::chunk { background: #10B981; border-radius: 2px; }")
         self.ecg_prog.setVisible(False)
         e_layout.addWidget(self.ecg_prog)
 
-        # ECG Action Button
-        self.ecg_action_btn = QPushButton("▶️ Record ECG Rhythm (5s)")
+        self.ecg_action_btn = QPushButton("▶️ Record ECG (5s)")
         self.ecg_action_btn.setObjectName("NavBtn")
-        self.ecg_action_btn.setMinimumHeight(44)
+        self.ecg_action_btn.setFixedHeight(38)
         self.ecg_action_btn.setCursor(Qt.PointingHandCursor)
         self.ecg_action_btn.clicked.connect(self._start_ecg_reading)
         e_layout.addWidget(self.ecg_action_btn)
 
-        right_col.addWidget(self.ecg_card)
-        content_row.addLayout(right_col, stretch=5)
+        cards_row.addWidget(self.ecg_card, 1)
 
-        layout.addLayout(content_row, stretch=1)
+        layout.addLayout(cards_row, stretch=1)
 
-        # 4. Bottom Action Bar
+        # 3. Bottom Action Bar (Compact, clean row)
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(14)
+        btn_row.setSpacing(8)
 
-        self.reset_btn = QPushButton("🔄 Reset Readings")
+        self.reset_btn = QPushButton("🔄 Reset")
         self.reset_btn.setObjectName("NavBtn")
-        self.reset_btn.setMinimumHeight(48)
+        self.reset_btn.setFixedHeight(38)
         self.reset_btn.setCursor(Qt.PointingHandCursor)
         self.reset_btn.clicked.connect(self._reset_all)
         btn_row.addWidget(self.reset_btn)
 
-        self.skip_btn = QPushButton("⏩ Skip Vitals & Proceed")
+        self.skip_btn = QPushButton("⏩ Skip Vitals")
         self.skip_btn.setObjectName("NavBtn")
-        self.skip_btn.setMinimumHeight(48)
+        self.skip_btn.setFixedHeight(38)
         self.skip_btn.setCursor(Qt.PointingHandCursor)
         self.skip_btn.clicked.connect(self._skip_vitals)
         btn_row.addWidget(self.skip_btn)
 
         btn_row.addStretch()
 
-        self.confirm_btn = QPushButton("✅ Confirm Vitals & Proceed to Assessment  ➔")
+        self.confirm_btn = QPushButton("✅ Confirm Vitals & Proceed  ➔")
         self.confirm_btn.setObjectName("PrimaryBtn")
-        self.confirm_btn.setMinimumHeight(48)
+        self.confirm_btn.setFixedHeight(38)
         self.confirm_btn.setCursor(Qt.PointingHandCursor)
         self.confirm_btn.clicked.connect(self._confirm_and_proceed)
         btn_row.addWidget(self.confirm_btn)

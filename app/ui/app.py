@@ -70,31 +70,31 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.top_bar = QFrame()
         self.top_bar.setObjectName("TopBar")
         bar_layout = QHBoxLayout(self.top_bar)
-        bar_layout.setContentsMargins(20, 0, 20, 0)
-        bar_layout.setSpacing(16)
+        bar_layout.setContentsMargins(10, 0, 10, 0)
+        bar_layout.setSpacing(8)
 
         # Navigation Buttons (Left-most)
         self.home_btn = QPushButton("🏠 Home")
-        self.home_btn.setObjectName("NavBtn")
+        self.home_btn.setObjectName("TopNavBtn")
         self.home_btn.setCursor(Qt.PointingHandCursor)
         self.home_btn.clicked.connect(self.navigate_home)
         bar_layout.addWidget(self.home_btn)
 
         self.back_btn = QPushButton("⬅️ Back")
-        self.back_btn.setObjectName("NavBtn")
+        self.back_btn.setObjectName("TopNavBtn")
         self.back_btn.setCursor(Qt.PointingHandCursor)
         self.back_btn.clicked.connect(self.navigate_back)
         bar_layout.addWidget(self.back_btn)
 
         self.new_assess_btn = QPushButton("🔄 New")
-        self.new_assess_btn.setObjectName("NavBtn")
+        self.new_assess_btn.setObjectName("TopNavBtn")
         self.new_assess_btn.setCursor(Qt.PointingHandCursor)
         self.new_assess_btn.clicked.connect(self.start_fresh_assessment)
         bar_layout.addWidget(self.new_assess_btn)
 
         # Medical Cross Icon + Brand
         cross_icon = QLabel("✚")
-        cross_icon.setStyleSheet("font-size: 24px; font-weight: 900; color: #2563EB; background: transparent;")
+        cross_icon.setStyleSheet("font-size: 20px; font-weight: 900; color: #2563EB; background: transparent;")
         bar_layout.addWidget(cross_icon)
 
         self.title_lbl = QLabel("AVERA")
@@ -126,16 +126,17 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         self.lang_badge.setObjectName("TopBarTelemetry")
         bar_layout.addWidget(self.lang_badge)
 
-        # Fullscreen Toggle Button
+        # Fullscreen Toggle Button (Compact Icon Button)
         self.fs_btn = QPushButton("⛶")
-        self.fs_btn.setObjectName("NavBtn")
+        self.fs_btn.setObjectName("TopNavBtn")
+        self.fs_btn.setFixedSize(36, 36)
         self.fs_btn.setCursor(Qt.PointingHandCursor)
         self.fs_btn.setToolTip("Toggle Fullscreen")
         self.fs_btn.clicked.connect(self.toggle_fullscreen)
         bar_layout.addWidget(self.fs_btn)
 
         # Hardware Telemetry Badge (RAM)
-        self.telemetry_lbl = QLabel("RAM: --")
+        self.telemetry_lbl = QLabel("--%")
         self.telemetry_lbl.setObjectName("TopBarTelemetry")
         bar_layout.addWidget(self.telemetry_lbl)
 
@@ -207,7 +208,7 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         ram_pct = stats.get("ram_percent", 0.0)
         temp_c = stats.get("temperature_c")
         temp_str = f" {temp_c:.0f}°C" if temp_c else ""
-        self.telemetry_lbl.setText(f"RAM {ram_pct:.0f}%{temp_str}")
+        self.telemetry_lbl.setText(f"{ram_pct:.0f}%{temp_str}")
 
     def _open_citizen_dialog(self):
         dialog = CitizenSearchDialog(parent=self, on_selected=self._set_active_patient)
@@ -356,10 +357,12 @@ class AverKioskApp(QMainWindow if HAS_QT else object):
         """Toggles between Fullscreen and Maximized Window."""
         if self.isFullScreen():
             self.showMaximized()
-            self.fs_btn.setText("⛶ Fullscreen")
+            self.fs_btn.setText("⛶")
+            self.fs_btn.setToolTip("Enter Fullscreen")
         else:
             self.showFullScreen()
-            self.fs_btn.setText("🗗 Windowed")
+            self.fs_btn.setText("🗗")
+            self.fs_btn.setToolTip("Exit Fullscreen (Windowed)")
 
     def keyPressEvent(self, event):
         """Hotkeys: F11 for Fullscreen toggle, Esc to exit Fullscreen."""
