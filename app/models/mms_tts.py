@@ -81,8 +81,13 @@ class MMSTTSService:
                     except Exception:
                         pass
 
-            tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
-            model = VitsModel.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
+            local_only = os.environ.get("TRANSFORMERS_OFFLINE", "1") == "1"
+            try:
+                tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(lang_cache_dir), local_files_only=local_only)
+                model = VitsModel.from_pretrained(model_id, cache_dir=str(lang_cache_dir), local_files_only=local_only)
+            except Exception:
+                tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
+                model = VitsModel.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
 
             model = model.to(self.device)
             model.eval()

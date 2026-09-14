@@ -250,40 +250,10 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
 
     def _build_full_narration(self, summary: str, schema: MedicalResponseSchema) -> str:
         """
-        Assembles a comprehensive, natural clinical voice narration covering both
-        the clinical assessment guidance and all recommended action steps.
-        Memory-safe chunked MMS-TTS handles full playback without Jetson OOM risk.
+        Returns strictly the concise clinical guidance summary for TTS voice narration.
+        Action items, danger signs, and referrals are presented visually on the UI cards.
         """
-        parts = []
-
-        # 1. Clinical assessment summary
-        clean_sum = summary.strip()
-        if clean_sum:
-            parts.append(clean_sum)
-
-        # 2. Recommended Next Steps (all actionable advice items)
-        if schema.recommended_actions:
-            header = {
-                "ta": "பரிந்துரைக்கப்பட்ட அடுத்த நடவடிக்கைகள்: ",
-                "hi": "अनुशंसित अगले कदम: ",
-                "te": "సూచించిన తదుపరి చర్యలు: ",
-                "kn": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು: ",
-                "ml": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ: "
-            }.get(self.language, "Recommended next steps: ")
-
-            action_sentences = []
-            for action in schema.recommended_actions:
-                clean_act = action.strip().lstrip("- •0123456789. ")
-                if clean_act:
-                    if not clean_act.endswith((".", "!", "?", "।")):
-                        clean_act += "."
-                    action_sentences.append(clean_act)
-
-            if action_sentences:
-                parts.append(f"{header}{' '.join(action_sentences)}")
-
-        narration = " ".join(parts).strip()
-        return narration[:1200]
+        return summary.strip()
 
     def _emit_status(self, text: str):
         if self.signals:
@@ -454,39 +424,8 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
                     pass
 
     def _build_full_narration(self, summary: str, schema: MedicalResponseSchema) -> str:
-        """Assembles a comprehensive voice narration covering summary, actions, danger signs, and referral."""
-        parts = [summary.strip()]
-        if schema.recommended_actions:
-            header = {
-                "ta": "பரிந்துரைக்கப்பட்ட அடுத்த படிகள். ",
-                "hi": "सुझाए गए अगले कदम. ",
-                "te": "సూచించిన తదుపరి చర్యలు. ",
-                "kn": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು. ",
-                "ml": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ. "
-            }.get(self.language, "Recommended next steps. ")
-            parts.append(header + ". ".join(schema.recommended_actions))
-
-        if schema.warning_signs:
-            header = {
-                "ta": "கவனிக்க வேண்டிய ஆபத்து அறிகுறிகள். ",
-                "hi": "खतरे के लक्षण जिन पर ध्यान दें. ",
-                "te": "ప్రమాద సంకేతాలు. ",
-                "kn": "ಅಪಾಯದ ಲಕ್ಷಣಗಳು. ",
-                "ml": "ശ്രദ്ധിക്കേണ്ട അപകട ലക്ഷണങ്ങൾ. "
-            }.get(self.language, "Watch for danger signs. ")
-            parts.append(header + ". ".join(schema.warning_signs))
-
-        if schema.referral:
-            header = {
-                "ta": "மருத்துவ பரிந்துரை ஆலோசனை. ",
-                "hi": "रेफरल मार्गदर्शन. ",
-                "te": "సిఫార్సు మార్గదర్శకత్వం. ",
-                "kn": "ರೆಫರಲ್ ಮಾರ್ಗದರ್ಶನ. ",
-                "ml": "റഫറൽ മാർഗ്ഗനിർദ്ദേശം. "
-            }.get(self.language, "Referral guidance. ")
-            parts.append(header + schema.referral)
-
-        return " ".join(parts)[:1200]
+        """Returns strictly the concise clinical guidance summary for voice narration."""
+        return summary.strip()
 
     def _emit_status(self, text: str):
         if self.signals:
