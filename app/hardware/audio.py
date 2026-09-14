@@ -300,9 +300,17 @@ class AudioPlayer:
             if self._proc is not None:
                 try:
                     self._proc.terminate()
+                    self._proc.kill()
                 except Exception:
                     pass
                 self._proc = None
+
+        if os.name == "posix":
+            try:
+                subprocess.run(["pkill", "-9", "-f", "paplay"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+                subprocess.run(["pkill", "-9", "-f", "aplay"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.5)
+            except Exception:
+                pass
 
         if HAS_SOUNDDEVICE:
             try:

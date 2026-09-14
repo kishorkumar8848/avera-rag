@@ -109,15 +109,33 @@ class NMTService:
 
 
         elif lang == "hi":
-            # Common Hindi ASR variations
+            # Common Hindi ASR variations and phonetic typos
+            text = text.replace("बुकार", "बुखार")
+            text = text.replace("बुखार आर", "बुखार और")
+            text = text.replace("खारसी", "खांसी")
             text = text.replace("खासी", "खांसी")
             text = text.replace("जुखाम", "जुकाम")
+            text = text.replace("जूकाम", "जुकाम")
+            text = text.replace("बुझुकाम", "जुकाम")
             text = text.replace("सरदर्द", "सिरदर्द")
             text = text.replace("सर दर्द", "सिरदर्द")
+            text = text.replace("सिरदर दहे", "सिरदर्द है")
+            text = text.replace("सिरदर", "सिरदर्द")
             text = text.replace("पेट का दर्द", "पेट दर्द")
+            text = text.replace("पेट दरद", "पेट दर्द")
+            text = text.replace("बदन दरद", "बदन दर्द")
             text = text.replace("छाती में दर्द", "सीने में दर्द")
+            text = text.replace("छाती दर्द", "सीने में दर्द")
+            text = text.replace("स्रिने", "सीने")
+            text = text.replace("देज दर्द", "तेज दर्द")
+            text = text.replace("होरा है", "हो रहा है")
             text = text.replace("उलटी", "उल्टी")
             text = text.replace("पतले दस्त", "दस्त")
+            text = text.replace("दसत", "दस्त")
+            text = text.replace("कफ", "खांसी")
+            text = text.replace("सांस फूलना", "सांस लेने में तकलीफ")
+            text = text.replace("दम फूलना", "सांस लेने में तकलीफ")
+            text = text.replace("चक्कर आना", "चक्कर")
 
         elif lang == "gu":
             # Common Gujarati ASR variations

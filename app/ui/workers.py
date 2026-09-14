@@ -250,10 +250,36 @@ class SpeechPipelineWorker(QRunnable if HAS_QT else object):
 
     def _build_full_narration(self, summary: str, schema: MedicalResponseSchema) -> str:
         """
-        Returns strictly the concise clinical guidance summary for TTS voice narration.
-        Action items, danger signs, and referrals are presented visually on the UI cards.
+        Builds concise voice narration combining the clinical guidance summary
+        and the top recommended action steps.
         """
-        return summary.strip()
+        parts = []
+        clean_sum = summary.strip()
+        if clean_sum:
+            parts.append(clean_sum)
+
+        if schema.recommended_actions:
+            header = {
+                "ta": "பரிந்துரைக்கப்பட்ட அடுத்த நடவடிக்கைகள்: ",
+                "hi": "सुझाए गए अगले कदम: ",
+                "gu": "ભલામણ કરેલ આગામી પગલાં: ",
+                "te": "సూచించిన తదుపరి చర్యలు: ",
+                "kn": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು: ",
+                "ml": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ: "
+            }.get(self.language, "Recommended next steps: ")
+
+            action_sentences = []
+            for action in schema.recommended_actions[:3]:
+                clean_act = action.strip().lstrip("- •0123456789. ")
+                if clean_act:
+                    if not clean_act.endswith((".", "!", "?", "।")):
+                        clean_act += "."
+                    action_sentences.append(clean_act)
+
+            if action_sentences:
+                parts.append(f"{header}{' '.join(action_sentences)}")
+
+        return " ".join(parts).strip()[:700]
 
     def _emit_status(self, text: str):
         if self.signals:
@@ -424,8 +450,34 @@ class MultimodalPipelineWorker(QRunnable if HAS_QT else object):
                     pass
 
     def _build_full_narration(self, summary: str, schema: MedicalResponseSchema) -> str:
-        """Returns strictly the concise clinical guidance summary for voice narration."""
-        return summary.strip()
+        """Builds concise voice narration combining the clinical guidance summary and top recommended action steps."""
+        parts = []
+        clean_sum = summary.strip()
+        if clean_sum:
+            parts.append(clean_sum)
+
+        if schema.recommended_actions:
+            header = {
+                "ta": "பரிந்துரைக்கப்பட்ட அடுத்த நடவடிக்கைகள்: ",
+                "hi": "सुझाए गए अगले कदम: ",
+                "gu": "ભલામણ કરેલ આગામી પગલાં: ",
+                "te": "సూచించిన తదుపరి చర్యలు: ",
+                "kn": "ಶಿಫಾರಸು ಮಾಡಿದ ಮುಂದಿನ ಹಂತಗಳು: ",
+                "ml": "ശുപാർശ ചെയ്യുന്ന അടുത്ത ഘട്ടങ്ങൾ: "
+            }.get(self.language, "Recommended next steps: ")
+
+            action_sentences = []
+            for action in schema.recommended_actions[:3]:
+                clean_act = action.strip().lstrip("- •0123456789. ")
+                if clean_act:
+                    if not clean_act.endswith((".", "!", "?", "।")):
+                        clean_act += "."
+                    action_sentences.append(clean_act)
+
+            if action_sentences:
+                parts.append(f"{header}{' '.join(action_sentences)}")
+
+        return " ".join(parts).strip()[:700]
 
     def _emit_status(self, text: str):
         if self.signals:

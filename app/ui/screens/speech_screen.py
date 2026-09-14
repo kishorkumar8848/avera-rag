@@ -273,6 +273,13 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.replay_btn.clicked.connect(self._replay_tts)
         status_layout.addWidget(self.replay_btn)
 
+        self.stop_tts_btn = QPushButton("⏹️ Stop Audio")
+        self.stop_tts_btn.setObjectName("NavBtn")
+        self.stop_tts_btn.setStyleSheet("background-color: #EF4444; color: white; font-weight: bold; border-radius: 6px; padding: 6px 12px; font-size: 13px;")
+        self.stop_tts_btn.setVisible(False)
+        self.stop_tts_btn.clicked.connect(self._stop_tts)
+        status_layout.addWidget(self.stop_tts_btn)
+
         layout.addLayout(status_layout)
 
         # 6. Click-to-Record Microphone Button Area (10s Auto-Send)
@@ -394,8 +401,10 @@ class SpeechScreen(QWidget if HAS_QT else object):
             self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #38BDF8;")
         elif "Speaking" in status:
             self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #10B981;")
+            self.stop_tts_btn.setVisible(True)
         elif "Ready" in status:
             self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #00E8C6;")
+            self.stop_tts_btn.setVisible(False)
 
     @Slot(str)
     def _show_emergency_alert(self, msg: str):
@@ -406,6 +415,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
     def _render_results(self, res: Dict[str, Any]):
         self.last_result = res
         self.replay_btn.setVisible(True)
+        self.stop_tts_btn.setVisible(True)
         self.placeholder_label.setVisible(False)
 
         # Clear existing result widgets
@@ -781,6 +791,7 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.last_result = None
         self.active_vitals = None
         self.replay_btn.setVisible(False)
+        self.stop_tts_btn.setVisible(False)
         self.emergency_frame.setVisible(False)
 
         # Clear existing result cards
@@ -800,11 +811,29 @@ class SpeechScreen(QWidget if HAS_QT else object):
         self.mic_btn.setStyleSheet("")
         logger.info("Speech screen state reset for fresh consultation.")
 
+    def _stop_tts(self):
+        """Immediately halts active audio speech playback."""
+        tts_service.stop_speaking()
+        self.stop_tts_btn.setVisible(False)
+        self.status_label.setText("Audio stopped")
+        self.status_label.setStyleSheet("font-size: 15px; font-weight: 600; color: #64748B;")
+
     def _replay_tts(self):
         """Re-synthesizes/plays the complete clinical guidance audio."""
         if self.last_result:
             spoken = self.last_result.get("spoken_text", self.last_result.get("summary", ""))
-            tts_service.speak_async(spoken, language=self.active_language)
+            self.stop_tts_btn.setVisible(True)
+            self.status_label.setText("Speaking...")
+            self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #10B981;")
+            tts_service.speak_async(
+                spoken,
+                language=self.active_language,
+                on_finished=lambda: (
+                    self.stop_tts_btn.setVisible(False),
+                    self.status_label.setText("Ready"),
+                    self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #00E8C6;")
+                )
+            )
 
     @Slot(str)
     def _handle_error(self, err_msg: str):

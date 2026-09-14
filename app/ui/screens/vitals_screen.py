@@ -417,14 +417,19 @@ class VitalsScreen(QWidget if HAS_QT else object):
         self.leads_timer.start(300)
 
     def _check_leads_status(self):
-        """Monitors real-time electrode attachment status."""
+        """Monitors real-time sensor connection and electrode attachment status."""
         v = sensor_manager.get_vitals()
-        if v.ecg_leads_ok:
-            self.lead_status_lbl.setText("● Leads OK")
-            self.lead_status_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #059669;")
+        hw_ad8232 = v.hardware_connected.get("AD8232", False) or v.hardware_connected.get("ADS1115", False)
+        if hw_ad8232:
+            if v.ecg_leads_ok:
+                self.lead_status_lbl.setText("● Sensor Ready (Leads OK)")
+                self.lead_status_lbl.setStyleSheet("font-size: 10px; font-weight: 700; color: #059669;")
+            else:
+                self.lead_status_lbl.setText("● Connected (Place Leads)")
+                self.lead_status_lbl.setStyleSheet("font-size: 10px; font-weight: 700; color: #2563EB;")
         else:
-            self.lead_status_lbl.setText("⚠️ Leads Off")
-            self.lead_status_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #DC2626;")
+            self.lead_status_lbl.setText("○ Sim Mode")
+            self.lead_status_lbl.setStyleSheet("font-size: 10px; font-weight: 600; color: #64748B;")
 
     # -------------------------------------------------------------------------
     # STEP 1: TEMPERATURE ON-DEMAND MEASUREMENT

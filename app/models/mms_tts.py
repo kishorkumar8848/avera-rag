@@ -45,7 +45,8 @@ class MMSTTSService:
         self.active_model = None
         self.active_tokenizer = None
         self._lock = threading.Lock()
-        self.device = os.environ.get("MMS_TTS_DEVICE", "cpu")
+        cuda_avail = HAS_VITS and torch.cuda.is_available()
+        self.device = os.environ.get("MMS_TTS_DEVICE", "cuda" if cuda_avail else "cpu")
 
     @property
     def is_available(self) -> bool:
@@ -89,7 +90,13 @@ class MMSTTSService:
                 tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
                 model = VitsModel.from_pretrained(model_id, cache_dir=str(lang_cache_dir))
 
-            model = model.to(self.device)
+            try:
+                model = model.to(self.device)
+            except Exception as cuda_err:
+                logger.warning(f"Failed to place MMS-TTS model on {self.device} ({cuda_err}), falling back to CPU.")
+                self.device = "cpu"
+                model = model.to("cpu")
+
             model.eval()
 
             self.active_model = model
@@ -192,10 +199,15 @@ class MMSTTSService:
                         pause = np.zeros(int(sample_rate * 0.25), dtype=np.int16)
                         audio_parts.append(pause)
 
-                    # Clean up PyTorch tensors immediately to release RAM
+                    # Clean up PyTorch tensors immediately to release RAM and VRAM
                     del output
                     del inputs
                     gc.collect()
+                    if self.device == "cuda" and torch.cuda.is_available():
+                        try:
+                            torch.cuda.empty_cache()
+                        except Exception:
+                            pass
 
                 if not audio_parts:
                     return None, 0.0

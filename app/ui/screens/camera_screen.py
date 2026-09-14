@@ -203,6 +203,13 @@ class CameraScreen(QWidget if HAS_QT else object):
         self.replay_btn.clicked.connect(self._replay_tts)
         status_bar.addWidget(self.replay_btn)
 
+        self.stop_tts_btn = QPushButton("⏹️ Stop Audio")
+        self.stop_tts_btn.setObjectName("NavBtn")
+        self.stop_tts_btn.setStyleSheet("background-color: #EF4444; color: white; font-weight: bold; border-radius: 6px; padding: 6px 12px; font-size: 13px;")
+        self.stop_tts_btn.setVisible(False)
+        self.stop_tts_btn.clicked.connect(self._stop_tts)
+        status_bar.addWidget(self.stop_tts_btn)
+
         right_layout.addLayout(status_bar)
 
         # Click-to-Record Microphone Button
@@ -357,11 +364,18 @@ class CameraScreen(QWidget if HAS_QT else object):
     @Slot(str)
     def _update_status(self, status: str):
         self.status_label.setText(status)
+        if "Speaking" in status:
+            self.status_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #10B981;")
+            self.stop_tts_btn.setVisible(True)
+        elif "Ready" in status or "Completed" in status:
+            self.status_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #2563EB;")
+            self.stop_tts_btn.setVisible(False)
 
     @Slot(dict)
     def _render_results(self, res: Dict[str, Any]):
         self.last_result = res
         self.replay_btn.setVisible(True)
+        self.stop_tts_btn.setVisible(True)
         self.guide_placeholder.setVisible(False)
 
         # Clear previous guidance items
@@ -561,6 +575,7 @@ class CameraScreen(QWidget if HAS_QT else object):
         self.captured_image = None
         self.visual_observations = []
         self.replay_btn.setVisible(False)
+        self.stop_tts_btn.setVisible(False)
 
         while self.guidance_layout.count() > 1:
             item = self.guidance_layout.takeAt(1)
@@ -583,10 +598,28 @@ class CameraScreen(QWidget if HAS_QT else object):
         self.start_viewfinder()
         logger.info("Camera assessment screen reset.")
 
+    def _stop_tts(self):
+        """Immediately halts active audio speech playback."""
+        tts_service.stop_speaking()
+        self.stop_tts_btn.setVisible(False)
+        self.status_label.setText("Audio stopped")
+        self.status_label.setStyleSheet("font-size: 15px; font-weight: 600; color: #64748B;")
+
     def _replay_tts(self):
         if self.last_result:
             spoken = self.last_result.get("spoken_text", self.last_result.get("summary", ""))
-            tts_service.speak_async(spoken, language=self.active_language)
+            self.stop_tts_btn.setVisible(True)
+            self.status_label.setText("Speaking...")
+            self.status_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #10B981;")
+            tts_service.speak_async(
+                spoken,
+                language=self.active_language,
+                on_finished=lambda: (
+                    self.stop_tts_btn.setVisible(False),
+                    self.status_label.setText("Ready"),
+                    self.status_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #2563EB;")
+                )
+            )
 
     @Slot(str)
     def _handle_error(self, err_msg: str):

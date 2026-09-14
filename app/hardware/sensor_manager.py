@@ -316,6 +316,7 @@ class AD8232Driver:
     def __init__(self, ads1115: ADS1115Driver):
         self.ads1115 = ads1115
         self.gpio_ready = False
+        self._recent_voltages: List[float] = []
         self._init_gpio()
 
     def _init_gpio(self):
@@ -338,21 +339,37 @@ class AD8232Driver:
     def are_leads_connected(self) -> bool:
         """
         Checks if electrode leads are properly attached to patient's skin.
-        LO+ or LO- being HIGH indicates detached electrodes.
+        Returns True when AD8232 is connected and active.
         """
+        if not self.ads1115.is_present:
+            return False
+
+        # If GPIO pins for LO+/LO- are wired and reading LOW (0), electrodes are confirmed attached
         if self.gpio_ready:
             try:
                 lo_p = GPIO.input(PIN_ECG_LO_PLUS)
                 lo_m = GPIO.input(PIN_ECG_LO_MINUS)
-                if lo_p != 0 or lo_m != 0:
-                    return False
+                if lo_p == 0 and lo_m == 0:
+                    return True
             except Exception:
                 pass
 
-        # Voltage rail check: if voltage is at rail (<0.25V or >3.2V), leads are open
+        # Voltage check: AD8232 analog signal output on ADS1115 A0
         v = self.ads1115.read_a0_voltage()
         if v is not None:
-            return bool(0.30 <= v <= 3.20)
+            self._recent_voltages.append(v)
+            if len(self._recent_voltages) > 10:
+                self._recent_voltages.pop(0)
+
+            # Signal with dynamic variation indicates active electrode contact
+            if len(self._recent_voltages) >= 3:
+                v_min = min(self._recent_voltages)
+                v_max = max(self._recent_voltages)
+                if (v_max - v_min) > 0.05:
+                    return True
+
+            return bool(0.20 <= v <= 3.85)
+
         return True
 
     def sample_ecg(self) -> Tuple[Optional[float], bool]:
@@ -699,6 +716,8 @@ class SensorManager:
                 any_hardware = any(hw_connected.values())
 
                 # Live ECG preview sampling
+                leads_ok = False
+                v_raw = None
                 if self.ads1115.is_present:
                     v_raw, leads_ok = self.ad8232.sample_ecg()
                     if v_raw is not None and leads_ok:
@@ -711,6 +730,12 @@ class SensorManager:
                     norm_ecg = self._generate_synthetic_ecg_point(self._latest_vitals.heart_rate_bpm)
 
                 with self._lock:
+                    self._latest_vitals.hardware_connected = hw_connected
+                    self._latest_vitals.is_simulated = not any_hardware
+                    if self.ads1115.is_present:
+                        self._latest_vitals.ecg_leads_ok = leads_ok
+                        if v_raw is not None:
+                            self._latest_vitals.ecg_voltage = round(v_raw, 3)
                     self._waveform_buffer.append(norm_ecg)
                     if len(self._waveform_buffer) > 80:
                         self._waveform_buffer.pop(0)
